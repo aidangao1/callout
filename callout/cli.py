@@ -199,7 +199,8 @@ async def cmd_mic_test(args) -> int:
     talker, hint = _make_talker(cfg, lambda pcm, t: loop.call_soon_threadsafe(queue.put_nowait, (pcm, t)))
     talker.start()
     out(f"Mic test. {hint} Nothing is traded. Ctrl+C to quit.")
-    out("Say things like: " + ", ".join(p for p in parser.grammar if p.startswith(("buy", "sell")))[:120] + ", flatten, confirm")
+    out("Commands: " + ", ".join(sorted(parser.phrases)))
+    out("Also try things that AREN'T commands (\"flat\", \"yes\", a cough): they should all say REJECT.")
     try:
         while True:
             pcm, t_release = await queue.get()

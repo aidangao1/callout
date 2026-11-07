@@ -168,3 +168,21 @@ def test_market_closed_blocks_orders_and_flatten():
     assert not r.check_flatten().ok
     r.ignore_market_hours = True
     assert r.check_order("ES", 0, 1).ok
+
+
+def test_decoys_are_heard_but_rejected():
+    c = cfg()
+    p = IntentParser(c)
+    for word in ("flat", "buy", "bye", "yes", "sell"):
+        assert word in p.grammar
+        assert p.parse(word) is None
+    assert p.parse("flatten") == Intent(Action.FLATTEN, None)
+    assert not set(p.decoys) & set(p.phrases)  # a decoy can never shadow a real command
+
+
+def test_extra_decoys_from_config():
+    c = cfg()
+    c.voice.decoys = ["Flatline", "flatten"]  # "flatten" is a real command, so it's ignored as a decoy
+    p = IntentParser(c)
+    assert "flatline" in p.decoys and "flatten" not in p.decoys
+    assert p.parse("flatten") == Intent(Action.FLATTEN, None)

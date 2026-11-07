@@ -29,6 +29,7 @@ class VoiceConfig:
     min_confidence: float = 0.70
     sample_rate: int = 0  # 0 = the mic's native rate
     input_device: str = ""  # blank = Windows default mic; or a number / part of a name from `callout devices`
+    decoys: list[str] = field(default_factory=list)  # extra near-miss words to hear and reject
     tts: bool = True
 
 

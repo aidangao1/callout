@@ -15,6 +15,8 @@ order_timeout_s = 10     # cancel and report if a market order isn't filled in t
 model = "vosk-model-small-en-us-0.15"  # downloads automatically on first run; or a path to a model folder
 push_to_talk = "f9"      # hold to talk. Any key name: "f9", "f8", "ctrl_r", "scroll_lock", "pause"... or "enter"
 min_confidence = 0.70    # reject anything the recognizer is less sure about
+decoys = []              # extra words that keep getting mistaken for a command, e.g. ["flatline", "bias"].
+                         # The recognizer will hear them as themselves and reject them.
 sample_rate = 0          # 0 = the mic's native rate
 input_device = ""        # blank = system default mic. Or a number or part of a name from: python -m callout devices
 tts = true               # speak readbacks out loud

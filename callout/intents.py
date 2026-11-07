@@ -30,6 +30,16 @@ class Intent:
         return f"{self.action.value} {self.symbol}" if self.symbol else self.action.value
 
 
+# Words that sound like commands but aren't. The recognizer can only output phrases it
+# knows, so without these, "flat" gets rounded to "flatten" and "bye" to "buy e s".
+# With them it hears the decoy, which the parser rejects.
+DECOYS = (
+    "flat", "flats", "flattened", "flatter", "that", "fat",
+    "buy", "by", "bye", "sell", "cell", "sale", "cel",
+    "yes", "yeah", "okay", "conform", "concern", "can", "council",
+    "close", "all", "es", "s", "e", "mini", "easy", "ice", "is", "it", "the", "and", "a",
+)
+
 CONFIRM_WORDS = ("confirm", "yes confirm")
 CANCEL_WORDS = ("cancel", "no")
 FLATTEN_ALL = ("flatten", "flatten all", "close all")
@@ -68,11 +78,13 @@ def build_phrase_map(cfg: Config) -> dict[str, Intent]:
 class IntentParser:
     def __init__(self, cfg: Config):
         self.phrases = build_phrase_map(cfg)
+        extra = tuple(getattr(cfg.voice, "decoys", ()) or ())
+        self.decoys = sorted({normalize(d) for d in DECOYS + extra} - set(self.phrases) - {""})
 
     def parse(self, text: str) -> Intent | None:
         return self.phrases.get(normalize(text))
 
     @property
     def grammar(self) -> list[str]:
-        """Every phrase the recognizer is allowed to output."""
-        return sorted(self.phrases)
+        """Every phrase the recognizer is allowed to output: commands plus decoys."""
+        return sorted(self.phrases) + self.decoys
