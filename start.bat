@@ -7,5 +7,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 title Callout
-".venv\Scripts\python.exe" -m callout run %*
-pause
+echo Opening Callout. Keep this window open: closing it closes Callout.
+echo If something goes wrong, the error shows up here.
+".venv\Scripts\python.exe" -m callout app %*
+if errorlevel 1 pause

@@ -119,11 +119,27 @@ See `config.example.toml`. Everything is commented. Common changes:
 - **Quiet (under ~10%)**: raise the input level in Windows sound settings or move closer.
 - **Loud enough but still not recognised**: look at what it heard. The phrases, `decoys` or `min_confidence` may need tuning.
 
+## The app window
+
+`python -m callout app` (what `start.bat` runs; add `--sim` to use the simulator) opens a desktop window built with pywebview, which uses Edge WebView2 on Windows.
+
+- `callout/session.py` runs the engine, broker and voice on a background asyncio loop and keeps a snapshot of everything the screen shows, refreshed several times a second. On-screen buttons send the same `confirm`, `cancel` and `flatten` commands as your voice, so they go through the same risk checks.
+- `callout/gui.py` creates the window and exposes a small API to the page (`window.pywebview.api`).
+- `callout/web/` is the page: `index.html`, `app.css`, `app.js`, and **`theme.css`, where every color and the font are defined.** Change the look there. Geist Mono is bundled (SIL Open Font License, `web/fonts/GeistMono-OFL.txt`).
+- Settings changed in the app are written back to `config.toml` (`callout/settings_io.py`).
+- Live trading has to be unlocked by typing LIVE each time the app starts, or when switching to live in Settings.
+
+The console version (`python -m callout run`, `start-console.bat`) still works and needs `--live` for real money.
+
 ## Project layout
 
 ```
 callout/
-  cli.py            commands: init, check, devices, mic-scan, mic-test, tts-test, run
+  cli.py            commands: app, init, check, devices, mic-scan, mic-test, tts-test, run
+  gui.py            the desktop window
+  session.py        runs everything behind the window
+  settings_io.py    saves settings back to config.toml
+  web/              the window's page (theme.css = colors and font)
   engine.py         intent -> risk -> confirm -> order -> readback
   intents.py        phrase grammar and strict parser
   risk.py           limits, cooldown, rate limit, market hours
@@ -137,7 +153,7 @@ callout/
     ibkr.py         Interactive Brokers (ib_async)
     sim.py          simulated fills
 tests/              python -m pytest
-*.bat               Windows double-click launchers (install, start, start-live, mic-test, check-connection)
+*.bat               Windows double-click launchers (install, start, start-console, mic-test, check-connection)
 ```
 
 Run the tests with `pip install -e .[dev]` then `python -m pytest`.

@@ -14,20 +14,38 @@ SVSF_PURGE_BEFORE_SPEAK = 2
 
 
 class Speaker:
-    def __init__(self, enabled: bool = True, echo=print):
+    def __init__(self, enabled: bool = True, echo=print, rate: int = 2, volume: int = 100):
         self.enabled = enabled
         self.echo = echo
+        self.rate = rate  # -10 (slow) .. 10 (fast)
+        self.volume = volume  # 0 .. 100
         self.backend = "off"
         self.error = ""
         self._q: queue.Queue[str | None] = queue.Queue()
         self._ready = threading.Event()
         self._thread: threading.Thread | None = None
         if enabled:
-            self._thread = threading.Thread(target=self._run, daemon=True)
-            self._thread.start()
-            self._ready.wait(10)  # so callers can report which voice loaded (or why none did)
+            self._start_thread()
         else:
             self._ready.set()
+
+    def _start_thread(self) -> None:
+        self._ready.clear()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        self._ready.wait(10)  # so callers can report which voice loaded (or why none did)
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Turn spoken replies on or off while running."""
+        self.enabled = enabled
+        if enabled and (self._thread is None or not self._thread.is_alive()):
+            self._start_thread()
+
+    def set_voice(self, rate: int | None = None, volume: int | None = None) -> None:
+        if rate is not None:
+            self.rate = max(-10, min(10, int(rate)))
+        if volume is not None:
+            self.volume = max(0, min(100, int(volume)))
 
     def say(self, text: str, interrupt: bool = False) -> None:
         self.echo(f"  >> {text}")
@@ -72,7 +90,7 @@ class Speaker:
     def _backend(self) -> Callable[[str], None]:
         if sys.platform == "darwin" and shutil.which("say"):
             self.backend = "macOS say"
-            return lambda t: subprocess.run(["say", "-r", "220", t], check=False)
+            return lambda t: subprocess.run(["say", "-r", str(200 + self.rate * 12), t], check=False)
         if sys.platform == "win32":
             try:
                 return self._windows_sapi()
@@ -87,18 +105,24 @@ class Speaker:
 
         comtypes.CoInitialize()  # COM must be initialised on the thread that uses it
         voice = comtypes.client.CreateObject("SAPI.SpVoice")
-        voice.Rate = 2  # -10 (slow) .. 10 (fast)
         self.backend = "Windows SAPI"
-        return lambda t: voice.Speak(t, SVSF_PURGE_BEFORE_SPEAK)
+
+        def speak(t: str) -> None:
+            voice.Rate = self.rate
+            voice.Volume = self.volume
+            voice.Speak(t, SVSF_PURGE_BEFORE_SPEAK)
+
+        return speak
 
     def _pyttsx3(self) -> Callable[[str], None]:
         import pyttsx3
 
         engine = pyttsx3.init()
-        engine.setProperty("rate", 210)
         self.backend = "pyttsx3"
 
         def speak(t: str) -> None:
+            engine.setProperty("rate", 200 + self.rate * 12)
+            engine.setProperty("volume", self.volume / 100)
             engine.say(t)
             engine.runAndWait()
 

@@ -46,12 +46,17 @@ TWS is Interactive Brokers' trading app. Callout sends orders through it, so it 
 7. Check that **Socket port** says **7497**.
 8. Click **Apply**, then **OK**. Leave TWS open.
 
-### Step 5: Check that everything works
+### Step 5: Open Callout
 
-Double-click these, in order:
+Double-click **`start.bat`**. The Callout window opens, along with a small black window behind it. Keep that one open: closing it closes Callout.
 
-1. **`check-connection.bat`**. It should say something like `Connected to ibkr. Account DU1234567 (paper).` If TWS pops up asking to accept a connection, click **Accept**.
-2. **`mic-test.bat`**. Hold **F9**, say **"buy E S"**, and let go. It should print `would do: BUY ES`. This only tests your mic and never trades. The first time, it downloads a speech model, which takes a moment.
+The first time, Callout walks you through a short setup:
+1. **Connect to TWS:** click **Test connection**. It should say `Connected · paper account DU…`. If TWS pops up asking to accept a connection, click **Accept**.
+2. **Pick your microphone:** choose your mic and test a command. Nothing is traded.
+3. **Check you can hear it:** play a sample of the spoken replies.
+4. **Practice on paper:** place and close a practice order.
+
+The first start also downloads a speech model (about 40 MB), which takes a moment.
 
 ---
 
@@ -59,7 +64,16 @@ Double-click these, in order:
 
 1. Open TWS and log in. Use **Paper** until you're comfortable.
 2. Double-click **`start.bat`**.
-3. **Hold F9 while you speak**, and let go when you're done.
+3. **Hold F9 while you speak**, and let go when you're done. You can also press and hold the big **HOLD TO TALK** button.
+
+**The screen:**
+- **Top bar:** connection, and which account you're on. **PAPER** is an outlined tag. A real-money account shows a solid black **LIVE · REAL MONEY** tag.
+- **Left, dark:** your position (FLAT, LONG 1, SHORT 2…), average price, and the **FLATTEN ALL** button. Press and *hold* it for a second; a single click does nothing, so you can't close a position by accident.
+- **Middle:** what Callout heard, and the order waiting for you. **CONFIRM** (or the Enter key) sends it, **Cancel** (or Esc) drops it, the same as saying them. On a live account, a **LIVE ACCOUNT** label appears above every order.
+- **Bottom:** everything that happened, newest first.
+- **Mini mode** (top right) shrinks Callout to a small strip that stays on top of TWS.
+
+The screen gets bigger when the window does, so it works well filling a second monitor.
 
 | Say | What happens |
 |---|---|
@@ -89,17 +103,13 @@ Double-click these, in order:
 
 ## Changing settings
 
-Open **`config.toml`** in the callout folder with Notepad, change what you need, save, and restart `start.bat`.
+Click **Settings** in the top right. Changes apply right away and are saved for next time.
 
-| To... | Change this |
-|---|---|
-| Use a different talk key | `push_to_talk = "f9"` to another key, like `"f8"` |
-| Use a different microphone | `input_device = ""` to the number `mic-test.bat` shows for your mic, like `"2"` |
-| Skip saying "confirm" (riskier) | `require_confirmation = true` to `false` |
-| Trade more than 1 contract at a time | `quantity = 1` under `[instruments.ES]` |
-| Allow a bigger position | `max_position = 2` |
-| Turn off the spoken replies | `tts = true` to `false` |
-| Trade Micro E-mini (MES) | Under `[instruments.MES]`, set `enabled = true`, then say "buy micro E S" |
+- **Microphone and voice:** pick your mic (with a live level meter), test a command, change the talk key, turn spoken replies on or off, set their speed and volume, and add words Callout should ignore.
+- **Trading:** turn ES and Micro E-mini (MES) on or off, contracts per order, the largest position allowed, the market-hours check, and the confirm settings.
+- **Connection:** TWS or IB Gateway, paper or live. The port fills in by itself.
+- **Logs:** opens the folder with the daily log files.
+- **Run setup again:** repeats the first-run setup.
 
 ---
 
@@ -107,9 +117,11 @@ Open **`config.toml`** in the callout folder with Notepad, change what you need,
 
 Only do this after you've used paper trading for a while.
 
-1. In TWS, log in to your **live** account. Do the API settings from Step 4, but set the port to **7496**.
-2. In `config.toml`, change `trading_mode = "paper"` to `"live"` and `port = 7497` to `7496`.
-3. Double-click **`start-live.bat`** and type `LIVE` when it asks.
+1. In TWS, log in to your **live** account and turn on the same API settings as Step 4. The live port is **7496**.
+2. In Callout, go to **Settings › Connection**, choose **Live (real money)**, type `LIVE` in the box that appears, and click **Use this connection**.
+3. The top bar now shows a solid **LIVE · REAL MONEY** tag. Every time you open Callout after that, it asks you to type `LIVE` again before it connects.
+
+To go back to practice, choose **Paper** in Settings › Connection.
 
 Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mistakes cost a tenth as much.
 
@@ -123,10 +135,11 @@ Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mista
 | "Couldn't reach TWS" | TWS isn't open and logged in, or Step 4 wasn't done. |
 | "looks LIVE, refusing to trade" | You logged TWS into your real account. Log in with **Paper** selected. |
 | "no ES futures" | Turn on futures trading in IBKR's Client Portal, under Settings › Trading Permissions. |
-| Holding F9 does nothing | On a laptop, try **Fn + F9**, or pick another key in settings. If you started TWS with "Run as administrator", start it normally instead. |
-| `mic-test` says "mic is silent" | In Windows Settings › Privacy & security › Microphone, turn on access for desktop apps. If that's already on, pick your mic in settings. |
-| It often mishears you | Raise your mic volume in Windows Sound settings until `mic-test` shows a level around 30–50%. |
+| Holding F9 does nothing | On a laptop, try **Fn + F9**, or change the talk key in Settings. If you started TWS with "Run as administrator", start it normally instead. The on-screen **HOLD TO TALK** button always works. |
+| The mic level bar doesn't move | In Windows Settings › Privacy & security › Microphone, turn on access for desktop apps. If that's already on, pick your mic in Settings › Microphone and voice. |
+| It often mishears you | Raise your mic volume in Windows Sound settings until the level bar reaches the shaded band when you talk. |
 | No spoken replies | Make sure Windows is playing sound on the device you're listening to (Settings › System › Sound › Output). |
+| The Callout window doesn't open | Look at the black window for an error. If it mentions WebView2, install **Microsoft Edge WebView2 Runtime** from microsoft.com (it's built into Windows 11). `start-console.bat` runs Callout without the window, and `mic-test.bat` and `check-connection.bat` test the mic and the TWS connection on their own. |
 | "Order state unknown" or "Check your platform" | Look in TWS. Your positions and orders there are always the truth. |
 
 ---

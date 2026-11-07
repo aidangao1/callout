@@ -368,7 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--all", action="store_true", help="include WDM-KS entries")
     sub.add_parser("mic-test", help="speak commands and see what's recognised; never trades")
 
-    s = sub.add_parser("run", help="start trading")
+    s = sub.add_parser("app", help="open the Callout window (what start.bat runs)")
+    s.add_argument("--sim", action="store_true", help="simulated broker, no TWS needed")
+
+    s = sub.add_parser("run", help="start trading in this console window (no app window)")
     s.add_argument("--sim", action="store_true", help="simulated broker, no TWS needed")
     s.add_argument("--text", action="store_true", help="type commands instead of speaking")
     s.add_argument("--live", action="store_true", help="required (with trading_mode = 'live') for real money")
@@ -383,6 +386,10 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_devices(args)
         if args.command == "tts-test":
             return cmd_tts_test(args)
+        if args.command == "app":
+            from .gui import run_app
+
+            return run_app(args.config, use_sim=args.sim)
         if args.command == "mic-scan":
             return cmd_mic_scan(args)
         handler = {"check": cmd_check, "mic-test": cmd_mic_test, "run": cmd_run}[args.command]

@@ -35,9 +35,14 @@ class Transcriber:
         else:
             # A bare model name: vosk downloads it to ~/.cache/vosk on first use.
             self.model = Model(model_name=model)
-        self.phrases, self.dropped = self._filter_phrases(phrases)
-        if not self.phrases:
+        self.set_phrases(phrases)
+
+    def set_phrases(self, phrases: list[str]) -> None:
+        """Change what the recognizer may hear (after enabling an instrument or adding ignored words)."""
+        keep, dropped = self._filter_phrases(phrases)
+        if not keep:
             raise RuntimeError("None of the command phrases are in the speech model's vocabulary.")
+        self.phrases, self.dropped = keep, dropped
         self._grammar = json.dumps(self.phrases + ["[unk]"])
 
     def _filter_phrases(self, phrases: list[str]) -> tuple[list[str], list[str]]:

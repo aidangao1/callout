@@ -1,0 +1,20 @@
+/*
+  CALLOUT THEME
+  Change the look of the whole app here. Everything else reads these values.
+  Restart Callout after editing.
+*/
+
+@font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Medium.woff2") format("woff2"); font-weight: 500; font-display: block; }
+@font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+:root {
+  --ink: #1B1B1B;           /* main dark: text, rail, buttons */
+  --paper: #F4F4F1;         /* page background */
+  --surface: #FFFFFF;       /* top bar, inputs, text on dark */
+  --muted: #55554F;         /* secondary text */
+  --line: #D6D6D1;          /* hairlines, empty bars */
+  --line-strong: #8A8A84;   /* stronger dividers, dashed boxes */
+  --on-ink-muted: #B8B8B2;  /* secondary text on the dark rail */
+  --font: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}

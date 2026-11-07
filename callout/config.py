@@ -31,6 +31,8 @@ class VoiceConfig:
     input_device: str = ""  # blank = Windows default mic; or a number / part of a name from `callout devices`
     decoys: list[str] = field(default_factory=list)  # extra near-miss words to hear and reject
     tts: bool = True
+    voice_rate: int = 2  # spoken reply speed, -10 (slow) .. 10 (fast)
+    voice_volume: int = 100  # 0 .. 100
 
 
 @dataclass

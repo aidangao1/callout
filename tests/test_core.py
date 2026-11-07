@@ -186,3 +186,25 @@ def test_extra_decoys_from_config():
     p = IntentParser(c)
     assert "flatline" in p.decoys and "flatten" not in p.decoys
     assert p.parse("flatten") == Intent(Action.FLATTEN, None)
+
+
+def test_settings_file_round_trip(tmp_path):
+    from callout.settings_io import save_config
+
+    c = load_config("config.example.toml")
+    c.safety.max_position = 3
+    c.voice.decoys = ["flatline"]
+    c.instruments["MES"].enabled = True
+    save_config(c, tmp_path / "config.toml")
+    back = load_config(tmp_path / "config.toml")
+    assert back.safety.max_position == 3 and back.voice.decoys == ["flatline"]
+    assert back.instruments["MES"].enabled and back.instruments["ES"].spoken == c.instruments["ES"].spoken
+
+
+def test_market_clock_text():
+    from callout.risk import market_status_text
+
+    assert market_status_text(et(2026, 11, 6, 21, 18)) == (False, "Market closed · opens Sun 6:00 PM ET")
+    assert market_status_text(et(2026, 11, 9, 10)) == (True, "Market open · closes 5:00 PM ET")
+    assert market_status_text(et(2026, 11, 12, 20)) == (True, "Market open · closes Fri 5:00 PM ET")
+    assert market_status_text(et(2026, 11, 9, 17, 30)) == (False, "Market closed · opens 6:00 PM ET")

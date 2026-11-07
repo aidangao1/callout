@@ -20,6 +20,8 @@ decoys = []              # extra words that keep getting mistaken for a command,
 sample_rate = 0          # 0 = the mic's native rate
 input_device = ""        # blank = system default mic. Or a number or part of a name from: python -m callout devices
 tts = true               # speak readbacks out loud
+voice_rate = 2           # reply speed, -10 (slow) to 10 (fast)
+voice_volume = 100       # 0 to 100
 
 [safety]
 require_confirmation = true   # "buy ES" -> readback -> you say "confirm" -> order

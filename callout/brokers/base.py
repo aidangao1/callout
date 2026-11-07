@@ -84,3 +84,13 @@ class Broker(ABC):
     @abstractmethod
     async def open_orders(self, symbols: set[str]) -> int:
         """How many working orders exist for these symbols, from any source."""
+
+    # ---- display helpers (cheap, cached; used by the UI) ---------------------------------------
+
+    def avg_price(self, contract: ContractRef) -> float | None:
+        """Average entry price of the current position in this contract, if known."""
+        return None
+
+    def working_count(self, symbols: set[str]) -> int | None:
+        """Working orders for these symbols from the broker's local cache, if available."""
+        return None

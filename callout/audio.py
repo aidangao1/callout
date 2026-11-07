@@ -126,6 +126,7 @@ class Recorder:
         self._armed = False
         self._lock = threading.Lock()
         self.callbacks = 0  # how many audio blocks have arrived; 0 after a second means a dead stream
+        self.level = 0.0  # live peak level 0..1 with a short decay, for the on-screen meter
         self._stream = sd.RawInputStream(
             samplerate=self.sample_rate, blocksize=blocksize, channels=1, dtype="int16",
             device=device, extra_settings=_extra_settings(sd, device), callback=self._callback,
@@ -133,8 +134,10 @@ class Recorder:
 
     def _callback(self, indata, frames, t, status) -> None:
         chunk = bytes(indata)
+        peak = audio_level(chunk)
         with self._lock:
             self.callbacks += 1
+            self.level = max(peak, self.level * 0.8)
             (self._buf if self._armed else self._pre).append(chunk)
 
     def start(self) -> None:
@@ -192,7 +195,8 @@ class PushToTalk:
         tail_s: float = 0.15,
     ):
         self.recorder = recorder
-        self.key = parse_key(key_name)
+        # No key (None, "" or "enter") = on-screen button only.
+        self.key = parse_key(key_name) if key_name and key_name.lower() != "enter" else None
         self.on_utterance = on_utterance
         self.on_state = on_state
         self.min_duration_s = min_duration_s
@@ -206,11 +210,12 @@ class PushToTalk:
         self._timer: threading.Timer | None = None
 
     def start(self) -> None:
-        from pynput import keyboard
-
         self.recorder.start()
-        self._listener = keyboard.Listener(on_press=self._press, on_release=self._release)
-        self._listener.start()
+        if self.key is not None:
+            from pynput import keyboard
+
+            self._listener = keyboard.Listener(on_press=self._press, on_release=self._release)
+            self._listener.start()
 
     def stop(self) -> None:
         if self._listener:
@@ -219,8 +224,21 @@ class PushToTalk:
             self._timer.cancel()
         self.recorder.close()
 
+    @property
+    def listening(self) -> bool:
+        return self._down
+
     def _press(self, key) -> None:
-        if not key_matches(key, self.key) or self._down:  # ignore other keys and OS auto-repeat
+        if self.key is not None and key_matches(key, self.key):
+            self.begin()
+
+    def _release(self, key) -> None:
+        if self.key is not None and key_matches(key, self.key):
+            self.end()
+
+    def begin(self) -> None:
+        """Start listening (hotkey down, or the on-screen Talk button pressed)."""
+        if self._down:  # ignore OS key auto-repeat
             return
         with self._lock:
             # Pressed again before the previous utterance's tail finished: close that one out
@@ -236,8 +254,9 @@ class PushToTalk:
             self._emit(*previous)
         self.on_state("listening")
 
-    def _release(self, key) -> None:
-        if not key_matches(key, self.key) or not self._down:
+    def end(self) -> None:
+        """Stop listening and send what was said."""
+        if not self._down:
             return
         with self._lock:
             self._down = False

@@ -88,6 +88,39 @@ class Engine:
             await self._warn_about_other_expiries()
             return self.account
 
+    async def reconfigure(self) -> None:
+        """Re-read instruments and phrases from cfg (after a settings change)."""
+        async with self._lock:
+            self.parser = IntentParser(self.cfg)
+            self.pending = None
+            self.contracts = {s: c for s, c in self.contracts.items() if s in self.cfg.enabled_instruments}
+            if self.broker.connected:
+                await self._refresh_contracts()
+
+    def pending_summary(self) -> dict | None:
+        """What's waiting for confirm, for the screen. None when nothing is (or it has expired)."""
+        p = self.pending
+        if p is None:
+            return None
+        total = self.cfg.safety.confirm_timeout_s
+        left = total - (self._mono() - p.created)
+        if left <= 0:
+            return None
+        if p.intent.action is Action.FLATTEN:
+            label = self.cfg.instruments[p.intent.symbol].symbol if p.intent.symbol else "all"
+            return {"verb": "Flatten", "qty": None, "symbol": label, "from": "", "to": "flat",
+                    "left": left, "total": total}
+        inst = self.cfg.instruments[p.intent.symbol]
+        return {
+            "verb": "Buy" if p.intent.action is Action.BUY else "Sell",
+            "qty": inst.quantity,
+            "symbol": inst.symbol,
+            "from": describe_position(p.current),
+            "to": describe_position(p.resulting),
+            "left": left,
+            "total": total,
+        }
+
     async def refresh_contracts(self) -> None:
         async with self._lock:
             if self.broker.connected:

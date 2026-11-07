@@ -16,6 +16,8 @@ dependencies = [
   "pynput>=1.7.6",
   "pyttsx3>=2.90; sys_platform != 'darwin'",
   "comtypes>=1.2; sys_platform == 'win32'",
+  "tomli-w>=1.0",
+  "pywebview>=5.0",
   "tzdata; sys_platform == 'win32'",
 ]
 
@@ -29,7 +31,7 @@ callout = "callout.cli:main"
 include = ["callout*"]
 
 [tool.setuptools.package-data]
-callout = ["config_template.toml"]
+callout = ["config_template.toml", "web/*", "web/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

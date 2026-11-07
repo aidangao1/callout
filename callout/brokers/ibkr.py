@@ -170,6 +170,23 @@ class IBKRBroker(Broker):
                 out.append((ContractRef(k.symbol, k.localSymbol, exp, raw=k), int(p.position)))
         return out
 
+    def avg_price(self, contract: ContractRef) -> float | None:
+        if not self.connected or contract.raw is None:
+            return None
+        for p in self.ib.positions(self.account):
+            if p.contract.conId == contract.raw.conId and p.position:
+                try:
+                    mult = float(p.contract.multiplier or contract.raw.multiplier or 1)
+                except ValueError:
+                    mult = 1.0
+                return p.avgCost / mult if mult else None
+        return None
+
+    def working_count(self, symbols: set[str]) -> int | None:
+        if not self.connected:
+            return None
+        return len(self._working(symbols))
+
     # ---- orders ------------------------------------------------------------------------------
 
     async def market_order(self, contract: ContractRef, action: str, quantity: int) -> OrderResult:

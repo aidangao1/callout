@@ -30,6 +30,7 @@ class SimBroker(Broker):
         self.reject_next: str | None = None  # set to a message to make the next order fail
         self.raise_next: Exception | None = None  # make the next order raise (e.g. a dropped connection)
         self.silent_fill_next = False  # report "Timeout" but actually fill (late fill after cancel)
+        self._avg: dict[str, float] = {}
 
     async def connect(self) -> str:
         self._connected = True
@@ -80,11 +81,27 @@ class SimBroker(Broker):
         price = self._tick(contract.symbol)
         signed = quantity if action == "BUY" else -quantity
         current = await self.position(contract)
-        self._positions[contract.local_symbol] = (contract, current + signed)
+        new = current + signed
+        self._positions[contract.local_symbol] = (contract, new)
+        self._update_avg(contract.local_symbol, current, new, price)
         if self.silent_fill_next:
             self.silent_fill_next = False
             return OrderResult(oid, action, quantity, "Timeout", 0, None, "Not filled within 10s; cancel sent.")
         return OrderResult(oid, action, quantity, "Filled", quantity, price)
+
+    def _update_avg(self, key: str, before: int, after: int, price: float) -> None:
+        if after == 0:
+            self._avg.pop(key, None)
+        elif before == 0 or (before > 0) != (after > 0):  # opened, or flipped sides
+            self._avg[key] = price
+        elif abs(after) > abs(before):  # added to the position
+            self._avg[key] = (self._avg.get(key, price) * abs(before) + price * (abs(after) - abs(before))) / abs(after)
+
+    def avg_price(self, contract: ContractRef) -> float | None:
+        return self._avg.get(contract.local_symbol)
+
+    def working_count(self, symbols: set[str]) -> int | None:
+        return sum(1 for sym, _ in self.working.values() if sym in symbols)
 
     async def cancel_open_orders(self, symbols: set[str], global_cancel: bool = False) -> int:
         if global_cancel:

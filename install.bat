@@ -29,7 +29,7 @@ if not exist "config.toml" ".venv\Scripts\python.exe" -m callout init
 echo.
 echo ============================================================
 echo   Done. Next: set up TWS (README step 4), then double-click
-echo   check-connection.bat
+echo   start.bat
 echo ============================================================
 pause
 exit /b 0
