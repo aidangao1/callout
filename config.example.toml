@@ -1,0 +1,47 @@
+# Callout config. Copy to config.toml (or run: python -m callout init) and edit.
+
+log_dir = "logs"
+
+[broker]
+type = "ibkr"            # "ibkr" or "sim" (simulated fills, no TWS needed)
+host = "127.0.0.1"
+port = 7497              # TWS paper 7497 | TWS live 7496 | IB Gateway paper 4002 | IB Gateway live 4001
+client_id = 17           # any number not used by another API app on the same TWS
+account = ""             # blank = first account on the login
+trading_mode = "paper"   # "paper" or "live". Live ALSO requires the --live flag.
+order_timeout_s = 10     # cancel and report if a market order isn't filled in this long
+
+[voice]
+model = "vosk-model-small-en-us-0.15"  # downloads automatically on first run; or a path to a model folder
+push_to_talk = "f9"      # hold to talk. Any key name: "f9", "f8", "ctrl_r", "scroll_lock", "pause"... or "enter"
+min_confidence = 0.70    # reject anything the recognizer is less sure about
+sample_rate = 16000
+tts = true               # speak readbacks out loud
+
+[safety]
+require_confirmation = true   # "buy ES" -> readback -> you say "confirm" -> order
+confirm_timeout_s = 10        # an unconfirmed order expires after this
+confirm_flatten = false       # flatten is the panic button, so it runs immediately by default
+flatten_cancels_all_orders = false  # flatten always cancels orders this app placed. true = also cancel orders
+                                    # entered in TWS, using IBKR global cancel: that cancels EVERY open
+                                    # order in the account, stocks included.
+max_position = 2              # most contracts you can hold in one instrument (long or short)
+min_seconds_between_orders = 1.0
+max_orders_per_minute = 10
+check_market_hours = true     # block orders outside CME Globex hours (Sun 6pm - Fri 5pm ET, daily 5-6pm halt)
+roll_days_before_expiry = 8   # switch to the next quarterly contract this many days before expiry
+
+# One section per instrument. "spoken" lists what you can say for it.
+[instruments.ES]
+enabled = true
+exchange = "CME"
+quantity = 1
+spoken = ["e s", "es", "e mini"]
+say_as = "E S"
+
+[instruments.MES]
+enabled = false          # micro E-mini, 1/10 the size. Good for first live tests.
+exchange = "CME"
+quantity = 1
+spoken = ["micro e s", "micro es", "micro e mini"]
+say_as = "micro E S"
