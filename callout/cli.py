@@ -130,6 +130,37 @@ def cmd_devices(args) -> int:
     return 0
 
 
+def cmd_mic_scan(args) -> int:
+    """Record a moment from every mic so you can see which one actually hears you."""
+    from .audio import audio_level, list_input_devices, sample_device
+
+    devices = [d for d in list_input_devices() if args.all or "WDM-KS" not in d["hostapi"]]
+    out(f"Scanning {len(devices)} mic entries, about 2 seconds each.")
+    out("Start counting out loud now and keep going until it says done.")
+    time.sleep(1.5)
+    best = None
+    for d in devices:
+        label = f"{d['index']:>3}  {d['name'][:40]:<40} [{d['hostapi']}]"
+        try:
+            pcm, blocks = sample_device(d["index"], d["rate"])
+        except Exception as e:
+            out(f"{label}  could not open: {str(e)[:70]}")
+            continue
+        level = audio_level(pcm)
+        bar = "#" * round(level * 30)
+        note = "  no audio arriving" if blocks == 0 else ""
+        out(f"{label}  {level:>4.0%} {bar}{note}")
+        if blocks and (best is None or level > best[1]):
+            best = (d, level)
+    out("Done. You can stop talking.")
+    if best and best[1] >= 0.05:
+        out(f'Loudest: {best[0]["index"]} ({best[0]["name"]}). Put input_device = "{best[0]["index"]}" under [voice] in config.toml.')
+    else:
+        out("Every mic is silent. Windows is still blocking mic access for this app, or another program "
+            "has exclusive control of the mic.")
+    return 0
+
+
 def _audio_report(rec, pcm: bytes) -> str:
     from .audio import audio_level
 
@@ -308,6 +339,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--live", action="store_true")
 
     sub.add_parser("devices", help="list microphones")
+    s = sub.add_parser("mic-scan", help="record a moment from every mic and show which one hears you")
+    s.add_argument("--all", action="store_true", help="include WDM-KS entries")
     sub.add_parser("mic-test", help="speak commands and see what's recognised; never trades")
 
     s = sub.add_parser("run", help="start trading")
@@ -323,6 +356,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_init(args)
         if args.command == "devices":
             return cmd_devices(args)
+        if args.command == "mic-scan":
+            return cmd_mic_scan(args)
         handler = {"check": cmd_check, "mic-test": cmd_mic_test, "run": cmd_run}[args.command]
         return asyncio.run(handler(args))
     except ConfigError as e:

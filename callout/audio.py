@@ -65,6 +65,29 @@ def resolve_input_device(spec: str | int | None):
     return matches[0]["index"]
 
 
+def _extra_settings(sd, device):
+    """WASAPI won't open a mic in mono at a non-native format unless asked to convert."""
+    try:
+        info = sd.query_devices(device, "input")
+        if "WASAPI" in sd.query_hostapis(info["hostapi"])["name"]:
+            return sd.WasapiSettings(auto_convert=True)
+    except Exception:
+        pass
+    return None
+
+
+def sample_device(device: int, rate: int, seconds: float = 1.5) -> tuple[bytes, int]:
+    """Record a short clip from one device. Returns (pcm16 mono, number of audio blocks received)."""
+    import sounddevice as sd
+
+    chunks: list[bytes] = []
+    with sd.RawInputStream(samplerate=rate, channels=1, dtype="int16", device=device,
+                           extra_settings=_extra_settings(sd, device),
+                           callback=lambda indata, n, t, st: chunks.append(bytes(indata))):
+        time.sleep(seconds)
+    return b"".join(chunks), len(chunks)
+
+
 class Recorder:
     def __init__(self, sample_rate: int = 0, device=None, preroll_s: float = 0.3, block_s: float = 0.05):
         import sounddevice as sd  # lazy: needs PortAudio
@@ -76,7 +99,8 @@ class Recorder:
         last_error = None
         for rate in rates:
             try:
-                sd.check_input_settings(device=device, samplerate=rate, channels=1, dtype="int16")
+                sd.check_input_settings(device=device, samplerate=rate, channels=1, dtype="int16",
+                                        extra_settings=_extra_settings(sd, device))
             except Exception as e:
                 last_error = e
                 continue
@@ -93,7 +117,7 @@ class Recorder:
         self.callbacks = 0  # how many audio blocks have arrived; 0 after a second means a dead stream
         self._stream = sd.RawInputStream(
             samplerate=self.sample_rate, blocksize=blocksize, channels=1, dtype="int16",
-            device=device, callback=self._callback,
+            device=device, extra_settings=_extra_settings(sd, device), callback=self._callback,
         )
 
     def _callback(self, indata, frames, t, status) -> None:
