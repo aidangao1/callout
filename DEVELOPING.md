@@ -156,4 +156,4 @@ Run the tests with `pip install -e .[dev]` then `python -m pytest`.
 
 ## License
 
-Not chosen yet. Pick one before making the repo public.
+[Apache 2.0](LICENSE).

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Voice-command order entry for Interactive Brokers futures (buy ES / sell ES / flatten)."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
 dependencies = [
   "ib_async>=2.0",
   "vosk>=0.3.45",
