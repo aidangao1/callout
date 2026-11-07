@@ -44,7 +44,21 @@ TWS is Interactive Brokers' trading app. Callout sends orders through it, so it 
 5. Tick **Enable ActiveX and Socket Clients**.
 6. Untick **Read-Only API**.
 7. Check that **Socket port** says **7497**.
-8. Click **Apply**, then **OK**. Leave TWS open.
+8. Leave **Allow connections from localhost only** ticked.
+9. Click **Apply**, then **OK**. Leave TWS open.
+
+Then set up the safety settings in the next section. They take two minutes.
+
+### Protect your account in TWS
+
+Turning on the API lets programs place orders through TWS, so lock it down:
+
+1. **Only this computer.** In API › Settings, keep **Allow connections from localhost only** ticked and don't add other trusted IPs. With the API on, *any* program on this computer can place orders through TWS, not just Callout.
+2. **A size limit in TWS itself.** In Global Configuration, open **Presets › Futures** and set the **Precautionary Settings** size limit, for example 2 contracts. TWS then stops oversized orders even if Callout ever had a bug.
+3. **Daily restart outside trading hours.** TWS restarts or logs off once a day. In **Lock and Exit**, set that time outside your trading hours. Callout reconnects on its own afterwards, and TWS also needs a full login once a week.
+4. **A manual way out.** If TWS or your computer stops working with a position open, Callout can't close it. Know how to flatten in TWS or the IBKR mobile app.
+
+The same checklist is in the app under Settings › Connection.
 
 ### Step 5: Open Callout
 

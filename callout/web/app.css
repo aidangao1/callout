@@ -9,6 +9,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 a { color: inherit; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .on-ink :focus-visible, .rail :focus-visible { outline-color: var(--surface); }
+.inp:focus-visible, .num:focus-visible, .chip-add:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
+.btn.primary:focus-visible { outline-color: var(--surface); }
+select:focus:not(:focus-visible) { outline: none; }
 [hidden] { display: none !important; }
 .label { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .muted { color: var(--muted); }
@@ -140,15 +143,21 @@ select.inp { padding: 0 10px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 4px 0 12px; border: 2px solid var(--ink); }
 .chip button { border: 0; background: transparent; padding: 8px; display: flex; }
 .chip-add { min-height: 40px; padding: 0 12px; border: 2px dashed var(--line-strong); background: transparent; width: 170px; }
-.inst-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.inst { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 140px; border: 2px solid var(--ink); cursor: pointer; }
-.inst + .inst { border-left: 0; margin-top: 28px; }
-.inst:has(input:checked) { background: var(--ink); color: var(--surface); }
-.inst:has(input:checked) small { color: var(--on-ink-muted); }
-.inst .top { display: flex; justify-content: space-between; align-items: center; }
+.inst-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.inst { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 150px; border: 2px dashed var(--line-strong); color: var(--muted); cursor: pointer; }
+.inst + .inst { margin-top: 28px; }
+.inst:has(input:checked) { border: 3px solid var(--ink); background: var(--surface); color: var(--ink); padding: 19px; }
+.inst .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.inst .ctl { display: flex; align-items: center; gap: 10px; }
+.inst .state { min-width: 44px; text-align: center; padding: 4px 8px; border: 1.5px solid currentColor; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; }
+.inst .state::after { content: "OFF"; }
+.inst:has(input:checked) .state { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.inst:has(input:checked) .state::after { content: "ON"; }
 .inst strong { font-size: 32px; letter-spacing: -0.02em; }
-.inst input { width: 22px; height: 22px; accent-color: var(--surface); }
+.inst input { width: 22px; height: 22px; accent-color: var(--ink); }
 .inst small { margin-top: auto; font-size: 12px; color: var(--muted); }
+.safety { border: 2px solid var(--ink); background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.safety ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; }
 .dashed { margin-left: 12%; border: 2px dashed var(--line-strong); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .result { display: flex; align-items: center; gap: 10px; flex: 1 1 280px; min-height: 48px; padding: 0 16px; border: 2px solid var(--ink); border-left: 0; background: var(--surface); }
 .result.bad { font-weight: 700; }

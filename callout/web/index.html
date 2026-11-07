@@ -170,8 +170,8 @@
         <div class="sec-head"><h2>What you trade</h2><p>Turn on either or both. Each has its own spoken name.</p></div>
         <div class="sec-body">
           <div class="inst-cards">
-            <label class="inst"><span class="top"><strong>ES</strong><input type="checkbox" data-setting="es_enabled"></span><span>E-mini S&amp;P 500</span><small>$50 per point · say "buy E S"</small></label>
-            <label class="inst"><span class="top"><strong>MES</strong><input type="checkbox" data-setting="mes_enabled"></span><span>Micro E-mini</span><small>$5 per point · say "buy micro E S"</small></label>
+            <label class="inst"><span class="top"><strong>ES</strong><span class="ctl"><span class="state" aria-hidden="true"></span><input type="checkbox" data-setting="es_enabled" aria-label="Trade ES"></span></span><span>E-mini S&amp;P 500</span><small>$50 per point · say "buy E S"</small></label>
+            <label class="inst"><span class="top"><strong>MES</strong><span class="ctl"><span class="state" aria-hidden="true"></span><input type="checkbox" data-setting="mes_enabled" aria-label="Trade MES"></span></span><span>Micro E-mini</span><small>$5 per point · say "buy micro E S"</small></label>
           </div>
         </div>
       </section>
@@ -209,6 +209,14 @@
             <label class="field-label"><span>Port</span><input class="inp" style="width:96px" data-conn="port"></label>
           </div>
           <p class="hint" style="font-size:12px">The port fills in from your choices (TWS paper 7497 · TWS live 7496 · Gateway paper 4002 · Gateway live 4001). Only change it if you changed it in TWS.</p>
+          <div class="safety">
+            <span class="label" style="color:var(--ink)">Protect your account in TWS</span>
+            <ol>
+              <li>Keep <strong>Allow connections from localhost only</strong> ticked in API › Settings, and don't add other trusted IPs. With the API on, any program on this computer can place orders through TWS.</li>
+              <li>Set a size limit for futures in <strong>Presets › Futures › Precautionary Settings</strong>, for example 2 contracts. TWS then stops oversized orders even if Callout had a bug.</li>
+              <li>Set TWS's daily restart in <strong>Lock and Exit</strong> to a time outside your trading hours. Callout reconnects after it.</li>
+            </ol>
+          </div>
           <div class="dashed" data-bind="live-box" hidden>
             <span class="label">Real money</span>
             <label style="display:flex;flex-wrap:wrap;align-items:center;gap:12px"><span>Type LIVE to trade real money</span><input class="inp" style="width:120px" placeholder="LIVE" data-conn="live_confirm"></label>
@@ -252,7 +260,7 @@
             <li><span class="muted">02</span><span>Click the gear icon, then <strong>API › Settings</strong>.</span></li>
             <li><span class="muted">03</span><span>Tick <strong>Enable ActiveX and Socket Clients</strong>.</span></li>
             <li><span class="muted">04</span><span>Untick <strong>Read-Only API</strong>.</span></li>
-            <li><span class="muted">05</span><span>Check the port says <strong>7497</strong>, then click OK.</span></li>
+            <li><span class="muted">05</span><span>Check the port says <strong>7497</strong>, and keep <strong>Allow connections from localhost only</strong> ticked. Click OK.</span></li>
           </ol>
           <div class="shot" role="img" aria-label="Where the API settings are in TWS">TWS › Global Configuration › API › Settings<br>Enable ActiveX and Socket Clients: on<br>Read-Only API: off<br>Socket port: 7497</div>
         </div>
