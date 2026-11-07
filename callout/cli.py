@@ -130,6 +130,19 @@ def cmd_devices(args) -> int:
     return 0
 
 
+def cmd_tts_test(args) -> int:
+    speaker = Speaker(enabled=True, echo=out)
+    out(f"Speech engine: {speaker.backend}" + (f" ({speaker.error})" if speaker.error else ""))
+    speaker.say("Callout speech test. Buy 1 E S. Flat to long 1. Say confirm.")
+    speaker.close(wait=True)
+    if speaker.backend in ("none", "off") or speaker.error:
+        out("No speech. Check the error above, and that Windows' default playback device is the one you're listening on.")
+        return 1
+    out("If you heard nothing, Windows is playing it on a different output device: "
+        "check Settings > System > Sound > Output.")
+    return 0
+
+
 def cmd_mic_scan(args) -> int:
     """Record a moment from every mic so you can see which one actually hears you."""
     from .audio import audio_level, list_input_devices, sample_device
@@ -259,6 +272,7 @@ async def cmd_run(args) -> int:
         out(f"  confirmation {'ON' if cfg.safety.require_confirmation else 'OFF'}"
             f" | market {'open' if risk.market_open() else 'CLOSED'}"
             f"{' (hours check bypassed)' if args.ignore_market_hours else ''}")
+        out(f"  speech: {speaker.backend}" + (f" ({speaker.error})" if speaker.error else ""))
         out(f"  log: {journal.dir.resolve()}")
         out(hint)
         out("-" * 60)
@@ -339,6 +353,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--live", action="store_true")
 
     sub.add_parser("devices", help="list microphones")
+    sub.add_parser("tts-test", help="speak a test sentence")
     s = sub.add_parser("mic-scan", help="record a moment from every mic and show which one hears you")
     s.add_argument("--all", action="store_true", help="include WDM-KS entries")
     sub.add_parser("mic-test", help="speak commands and see what's recognised; never trades")
@@ -356,6 +371,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_init(args)
         if args.command == "devices":
             return cmd_devices(args)
+        if args.command == "tts-test":
+            return cmd_tts_test(args)
         if args.command == "mic-scan":
             return cmd_mic_scan(args)
         handler = {"check": cmd_check, "mic-test": cmd_mic_test, "run": cmd_run}[args.command]
