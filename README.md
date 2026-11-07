@@ -103,15 +103,25 @@ Event types: `startup`, `heard` (with `rejected` reason if any), `awaiting_confi
 See `config.example.toml`. Everything is commented. Common changes:
 
 - `push_to_talk`: pick a key your trading platform doesn't use, since the key press still reaches the focused app.
+- `input_device`: which microphone to use. Run `python -m callout devices` to list them, then put the number or part of the name here.
 - `require_confirmation = false`: one-step orders. Faster, but a misheard word becomes a trade.
 - `quantity`, `max_position`: per instrument.
 - `spoken`: the phrases for each instrument. Phrases using words the speech model doesn't know are dropped at startup with a note.
+
+## Mic troubleshooting
+
+`mic-test` prints the length and peak level of each recording under what it heard.
+
+- **`level 0%` / "mic is silent"**: the app is getting silence. Check Windows *Settings › Privacy & security › Microphone*: both "Microphone access" and "Let desktop apps access your microphone" must be on. If they are, it's probably the wrong mic: run `python -m callout devices` and set `input_device`.
+- **"no audio is arriving"**: the mic stream isn't delivering anything. Pick a different entry for the same mic in `devices` (they're listed once per Windows audio system: MME, DirectSound, WASAPI).
+- **Quiet (under ~10%)**: raise the input level in Windows sound settings or move closer.
+- **Loud enough but still not recognised**: tell me what it heard. The phrases or `min_confidence` may need tuning.
 
 ## Project layout
 
 ```
 callout/
-  cli.py            commands: init, check, mic-test, run
+  cli.py            commands: init, check, devices, mic-test, run
   engine.py         intent -> risk -> confirm -> order -> readback
   intents.py        phrase grammar and strict parser
   risk.py           limits, cooldown, rate limit, market hours

@@ -27,7 +27,8 @@ class VoiceConfig:
     model: str = "vosk-model-small-en-us-0.15"  # model name (auto-downloads) or a folder path
     push_to_talk: str = "f9"  # a key name like "f9", "ctrl_r", "scroll_lock", or "enter"
     min_confidence: float = 0.70
-    sample_rate: int = 16000
+    sample_rate: int = 0  # 0 = the mic's native rate
+    input_device: str = ""  # blank = Windows default mic; or a number / part of a name from `callout devices`
     tts: bool = True
 
 

@@ -62,9 +62,10 @@ def _load_transcriber(cfg: Config, parser: IntentParser):
 
 
 def _make_talker(cfg: Config, on_utterance, on_state=_on_state):
-    from .audio import EnterToTalk, PushToTalk, Recorder
+    from .audio import EnterToTalk, PushToTalk, Recorder, resolve_input_device
 
-    rec = Recorder(cfg.voice.sample_rate)
+    rec = Recorder(cfg.voice.sample_rate, device=resolve_input_device(cfg.voice.input_device))
+    out(f"Microphone: {rec.device_name} ({rec.sample_rate} Hz)")
     if cfg.voice.push_to_talk.lower() == "enter":
         return EnterToTalk(rec, on_utterance, on_state), "Press Enter, speak, press Enter."
     return PushToTalk(rec, cfg.voice.push_to_talk, on_utterance, on_state), f"Hold {cfg.voice.push_to_talk.upper()} and speak."
@@ -115,6 +116,35 @@ async def cmd_check(args) -> int:
         await broker.disconnect()
 
 
+def cmd_devices(args) -> int:
+    from .audio import list_input_devices
+
+    devices = list_input_devices()
+    if not devices:
+        out("No microphones found.")
+        return 1
+    out("Microphones (set voice.input_device in config.toml to the number or part of the name):")
+    for d in devices:
+        mark = "  <- default" if d["default"] else ""
+        out(f"  {d['index']:>3}  {d['name']}  [{d['hostapi']}, {d['rate']} Hz]{mark}")
+    return 0
+
+
+def _audio_report(rec, pcm: bytes) -> str:
+    from .audio import audio_level
+
+    secs, level = rec.seconds(pcm), audio_level(pcm)
+    note = ""
+    if rec.callbacks == 0:
+        note = "  !! no audio is arriving from this mic at all"
+    elif level < 0.02:
+        note = ("  !! mic is silent: wrong mic, muted, or Windows is blocking mic access "
+                "(Settings > Privacy & security > Microphone)")
+    elif level < 0.10:
+        note = "  (quiet: speak up, move closer, or raise the mic level in Windows sound settings)"
+    return f"{secs:.1f}s audio, level {level:.0%}{note}"
+
+
 async def cmd_mic_test(args) -> int:
     """Talk to it without any broker: see exactly what it hears and how it would act."""
     cfg = _load(args)
@@ -129,12 +159,13 @@ async def cmd_mic_test(args) -> int:
     try:
         while True:
             pcm, t_release = await queue.get()
-            tr = await loop.run_in_executor(None, transcriber.transcribe, pcm)
+            tr = await loop.run_in_executor(None, transcriber.transcribe, pcm, talker.recorder.sample_rate)
             ms = (time.monotonic() - t_release) * 1000
             intent = parser.parse(tr.text) if not tr.has_unknown else None
             ok = intent and tr.confidence >= cfg.voice.min_confidence
             verdict = f"would do: {intent.describe()}" if ok else "would REJECT"
             out(f"heard '{tr.text}'  confidence {tr.confidence:.2f}  ({ms:.0f} ms)  -> {verdict}")
+            out(f"    {_audio_report(talker.recorder, pcm)}")
     finally:
         talker.stop()
 
@@ -217,9 +248,12 @@ async def cmd_run(args) -> int:
                     elif kind == "reject":
                         await engine.reject_input(payload, said="Too short.")
                     else:
-                        tr = await loop.run_in_executor(None, transcriber.transcribe, payload)
+                        tr = await loop.run_in_executor(
+                            None, transcriber.transcribe, payload, talker.recorder.sample_rate
+                        )
                         t_heard = time.monotonic()
-                        out(f"heard '{tr.text}' ({tr.confidence:.2f}, {(t_heard - t_release) * 1000:.0f} ms)")
+                        out(f"heard '{tr.text}' ({tr.confidence:.2f}, {(t_heard - t_release) * 1000:.0f} ms)"
+                            f" | {_audio_report(talker.recorder, payload)}")
                         await engine.handle_transcript(tr, Meta(source="voice", t_release=t_release, t_heard=t_heard))
                 except Exception as e:  # keep listening no matter what; flatten must stay available
                     journal.log("error", error=repr(e))
@@ -273,6 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--sim", action="store_true")
     s.add_argument("--live", action="store_true")
 
+    sub.add_parser("devices", help="list microphones")
     sub.add_parser("mic-test", help="speak commands and see what's recognised; never trades")
 
     s = sub.add_parser("run", help="start trading")
@@ -286,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "init":
             return cmd_init(args)
+        if args.command == "devices":
+            return cmd_devices(args)
         handler = {"check": cmd_check, "mic-test": cmd_mic_test, "run": cmd_run}[args.command]
         return asyncio.run(handler(args))
     except ConfigError as e:

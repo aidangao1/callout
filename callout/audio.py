@@ -16,23 +16,90 @@ UtteranceHandler = Callable[[bytes, float], None]  # (pcm16 audio, monotonic tim
 StateHandler = Callable[[str], None]  # "listening" / "processing"
 
 
+def audio_level(pcm16: bytes) -> float:
+    """Peak level of 16-bit PCM audio, 0.0 (silence) to 1.0 (full scale)."""
+    from array import array
+
+    samples = array("h")
+    samples.frombytes(pcm16[: len(pcm16) - len(pcm16) % 2])
+    if not samples:
+        return 0.0
+    return min(1.0, max(abs(min(samples)), max(samples)) / 32768)
+
+
+def list_input_devices() -> list[dict]:
+    import sounddevice as sd
+
+    default_in = sd.default.device[0] if sd.default.device else None
+    out = []
+    for i, d in enumerate(sd.query_devices()):
+        if d["max_input_channels"] > 0:
+            out.append({
+                "index": i,
+                "name": d["name"],
+                "hostapi": sd.query_hostapis(d["hostapi"])["name"],
+                "rate": int(d["default_samplerate"]),
+                "default": i == default_in,
+            })
+    return out
+
+
+def resolve_input_device(spec: str | int | None):
+    """'' -> system default; '3' -> device 3; 'yeti' -> first input device whose name contains it."""
+    if spec is None or str(spec).strip() == "":
+        return None
+    spec = str(spec).strip()
+    devices = list_input_devices()
+    if spec.isdigit():
+        idx = int(spec)
+        if not any(d["index"] == idx for d in devices):
+            raise ValueError(f"Input device {idx} doesn't exist or isn't a microphone. Run: python -m callout devices")
+        return idx
+    import sounddevice as sd
+
+    default_api = sd.query_hostapis(sd.default.hostapi)["name"] if sd.default.hostapi is not None else None
+    matches = [d for d in devices if spec.lower() in d["name"].lower()]
+    matches.sort(key=lambda d: d["hostapi"] != default_api)  # prefer the default audio system's entry
+    if not matches:
+        raise ValueError(f"No microphone matching '{spec}'. Run: python -m callout devices")
+    return matches[0]["index"]
+
+
 class Recorder:
-    def __init__(self, sample_rate: int = 16000, preroll_s: float = 0.3, block_s: float = 0.05):
+    def __init__(self, sample_rate: int = 0, device=None, preroll_s: float = 0.3, block_s: float = 0.05):
         import sounddevice as sd  # lazy: needs PortAudio
 
-        self.sample_rate = sample_rate
-        blocksize = int(sample_rate * block_s)
+        info = sd.query_devices(device, "input")
+        self.device_name = info["name"]
+        rates = [sample_rate] if sample_rate else []
+        rates.append(int(info["default_samplerate"]))  # the mic's native rate always works
+        last_error = None
+        for rate in rates:
+            try:
+                sd.check_input_settings(device=device, samplerate=rate, channels=1, dtype="int16")
+            except Exception as e:
+                last_error = e
+                continue
+            self.sample_rate = rate
+            break
+        else:
+            raise RuntimeError(f"Microphone '{self.device_name}' can't be opened: {last_error}")
+
+        blocksize = int(self.sample_rate * block_s)
         self._pre: deque[bytes] = deque(maxlen=max(1, int(preroll_s / block_s)))
         self._buf: list[bytes] = []
         self._armed = False
         self._lock = threading.Lock()
+        self.callbacks = 0  # how many audio blocks have arrived; 0 after a second means a dead stream
         self._stream = sd.RawInputStream(
-            samplerate=sample_rate, blocksize=blocksize, channels=1, dtype="int16", callback=self._callback
+            samplerate=self.sample_rate, blocksize=blocksize, channels=1, dtype="int16",
+            device=device, callback=self._callback,
         )
 
     def _callback(self, indata, frames, t, status) -> None:
         chunk = bytes(indata)
         with self._lock:
+            self.callbacks += 1
             (self._buf if self._armed else self._pre).append(chunk)
 
     def start(self) -> None:

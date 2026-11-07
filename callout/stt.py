@@ -50,8 +50,9 @@ class Transcriber:
             (keep if all(find(w) != -1 for w in p.split()) else dropped).append(p)
         return keep, dropped
 
-    def transcribe(self, pcm16: bytes) -> Transcript:
-        rec = self._Recognizer(self.model, self.sample_rate, self._grammar)
+    def transcribe(self, pcm16: bytes, sample_rate: int | None = None) -> Transcript:
+        # Vosk resamples to the model's rate, so the mic's native rate is fine here.
+        rec = self._Recognizer(self.model, sample_rate or self.sample_rate, self._grammar)
         rec.SetWords(True)
         rec.AcceptWaveform(pcm16)
         result = json.loads(rec.FinalResult())
