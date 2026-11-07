@@ -1,154 +1,147 @@
 # Callout
 
-Voice-command order entry for Interactive Brokers futures. Hold a key, say **"buy ES"**, hear the readback, say **"confirm"**, and a market order goes to TWS or IB Gateway. Say **"flatten"** to close everything.
+Trade ES futures with your voice. Hold a key, say **"buy E S"**, hear the order read back, say **"confirm"**, and it's sent to your Interactive Brokers account.
 
-```
-hold F9 ─► mic ─► Vosk (offline, locked to known phrases) ─► strict parser ─► risk checks
-        ─► spoken readback + "confirm" ─► IBKR market order ─► "Filled at 6001.25, you're long 1" ─► JSONL log
-```
+> **Warning:** Callout places real orders when connected to a real-money account. Always start with a **paper** (practice) account. Use at your own risk. This is not financial advice.
 
-> Not financial advice. This software places real orders when pointed at a live account. Test on paper first and use at your own risk.
+## What you need
 
-## Voice commands
+- A **Windows** computer
+- A **microphone**. A headset works best.
+- An **Interactive Brokers** account with **futures trading** turned on. Every IBKR account comes with a free paper trading account for practice.
+- About 15 minutes
 
-| Say | Does |
+---
+
+## Setup (one time)
+
+### Step 1: Install Python
+
+1. Go to **python.org/downloads** and download the latest Python for Windows.
+2. Run the installer. On the first screen, tick **"Add python.exe to PATH"**, then click **Install Now**.
+
+### Step 2: Download Callout
+
+1. Download Callout as a ZIP file. On GitHub, that's the green **Code** button, then **Download ZIP**.
+2. Right-click the ZIP and choose **Extract All**. Put the folder somewhere easy to find, like `C:\callout`.
+
+### Step 3: Install Callout
+
+1. Open the `callout` folder and double-click **`install.bat`**.
+2. A black window opens and installs everything. This takes a minute or two.
+3. When it says **Done**, press any key to close it.
+
+If Windows shows **"Windows protected your PC"**, click **More info**, then **Run anyway**. Windows shows this for any downloaded script.
+
+### Step 4: Set up Trader Workstation (TWS)
+
+TWS is Interactive Brokers' trading app. Callout sends orders through it, so it has to be open while you trade.
+
+1. Download **Trader Workstation** from interactivebrokers.com and install it.
+2. Open TWS. On the login screen, switch to **Paper**, then log in.
+3. Click the **gear icon** at the top right of TWS. In some versions it's in the **File** or **Edit** menu, called **Global Configuration**.
+4. In the list on the left, open **API**, then click **Settings**.
+5. Tick **Enable ActiveX and Socket Clients**.
+6. Untick **Read-Only API**.
+7. Check that **Socket port** says **7497**.
+8. Click **Apply**, then **OK**. Leave TWS open.
+
+### Step 5: Check that everything works
+
+Double-click these, in order:
+
+1. **`check-connection.bat`**. It should say something like `Connected to ibkr. Account DU1234567 (paper).` If TWS pops up asking to accept a connection, click **Accept**.
+2. **`mic-test.bat`**. Hold **F9**, say **"buy E S"**, and let go. It should print `would do: BUY ES`. This only tests your mic and never trades. The first time, it downloads a speech model, which takes a moment.
+
+---
+
+## Trading
+
+1. Open TWS and log in. Use **Paper** until you're comfortable.
+2. Double-click **`start.bat`**.
+3. **Hold F9 while you speak**, and let go when you're done.
+
+| Say | What happens |
 |---|---|
-| `buy E S` / `buy E mini` | Buy 1 ES contract (quantity is set in config) |
-| `sell E S` / `sell E mini` | Sell 1 ES contract |
-| `confirm` | Send the order that was just read back |
-| `cancel` / `no` | Drop it |
-| `flatten` / `flatten all` / `close all` | Cancel working orders and close every position in the configured instruments, in any expiry. No confirmation by default |
-| `flatten E S` | Same, ES only |
+| **buy E S** | Reads the order back to you. Say "confirm" to send it. |
+| **sell E S** | Same, for selling. |
+| **confirm** | Sends the order that was just read back. |
+| **cancel** | Drops it. |
+| **flatten** | Closes your ES position right away. It doesn't ask for confirmation. |
 
-In futures there is only buy and sell. If you're flat, "sell" opens a short. If you're long 1, "sell" closes it. The readback always tells you which, e.g. *"Sell 1 E S. Long 1 to flat. Say confirm."*
+**Example:**
 
-## Setup
+> **You:** "buy E S"
+> **Callout:** "Buy 1 E S. Flat to long 1. Say confirm."
+> **You:** "confirm"
+> **Callout:** "Filled. Bought 1 E S at 6001.25. You're long 1."
 
-**You need:** Python 3.11+, an IBKR account with futures trading permissions, TWS or IB Gateway, and a microphone.
+**Good to know:**
 
-### 1. Install
+- Futures only have buy and sell. If you're long and say "sell," you go flat. If you're flat and say "sell," you go short. The readback always tells you which.
+- If Callout didn't understand you, it says **"Didn't catch that. Nothing sent."** Just say it again.
+- If you don't say "confirm" within 10 seconds, the order is dropped.
+- ES trades **Sunday 6pm to Friday 5pm Eastern**, with a break from 5 to 6pm every weekday. Outside those hours, Callout says the market is closed.
+- To stop Callout, close its window.
+- Every command and order is saved in the `logs` folder.
 
-```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate     macOS/Linux: source .venv/bin/activate
-pip install -e .
-```
+---
 
-- **macOS:** give your terminal app Microphone, Accessibility and Input Monitoring permission (System Settings › Privacy & Security). The global hotkey needs the last two.
-- **Linux:** `sudo apt install libportaudio2 espeak-ng`. Global hotkeys need X11; on Wayland set `push_to_talk = "enter"`.
-- **Windows:** nothing extra.
+## Changing settings
 
-### 2. Turn on the API in TWS (or IB Gateway)
+Open **`config.toml`** in the callout folder with Notepad, change what you need, save, and restart `start.bat`.
 
-Log in to your **paper** account, then go to *Global Configuration › API › Settings*:
+| To... | Change this |
+|---|---|
+| Use a different talk key | `push_to_talk = "f9"` to another key, like `"f8"` |
+| Use a different microphone | `input_device = ""` to the number `mic-test.bat` shows for your mic, like `"2"` |
+| Skip saying "confirm" (riskier) | `require_confirmation = true` to `false` |
+| Trade more than 1 contract at a time | `quantity = 1` under `[instruments.ES]` |
+| Allow a bigger position | `max_position = 2` |
+| Turn off the spoken replies | `tts = true` to `false` |
+| Trade Micro E-mini (MES) | Under `[instruments.MES]`, set `enabled = true`, then say "buy micro E S" |
 
-- check **Enable ActiveX and Socket Clients**
-- uncheck **Read-Only API**
-- socket port **7497** (TWS paper). IB Gateway paper uses **4002**.
-- make sure `127.0.0.1` is allowed (Trusted IPs)
+---
 
-### 3. Configure and test
+## Trading with real money
 
-```bash
-python -m callout init        # writes config.toml
-python -m callout check       # connects, shows the contract it will trade and your positions
-python -m callout mic-test    # speak; shows what it heard and what it WOULD do. Never trades.
-python -m callout run         # trade
-```
+Only do this after you've used paper trading for a while.
 
-The speech model (~40 MB) downloads automatically the first time.
+1. In TWS, log in to your **live** account. Do the API settings from Step 4, but set the port to **7496**.
+2. In `config.toml`, change `trading_mode = "paper"` to `"live"` and `port = 7497` to `7496`.
+3. Double-click **`start-live.bat`** and type `LIVE` when it asks.
 
-### Try it without TWS
+Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mistakes cost a tenth as much.
 
-```bash
-python -m callout run --sim --text --ignore-market-hours
-```
+---
 
-`--sim` fakes fills, `--text` lets you type commands instead of speaking, and `--ignore-market-hours` lets you test on a weekend. Drop `--text` to test with your voice.
+## Troubleshooting
 
-## Safety
+| Problem | Fix |
+|---|---|
+| `install.bat` says Python isn't installed | Reinstall Python and tick **"Add python.exe to PATH"**. |
+| "Couldn't reach TWS" | TWS isn't open and logged in, or Step 4 wasn't done. |
+| "looks LIVE, refusing to trade" | You logged TWS into your real account. Log in with **Paper** selected. |
+| "no ES futures" | Turn on futures trading in IBKR's Client Portal, under Settings › Trading Permissions. |
+| Holding F9 does nothing | On a laptop, try **Fn + F9**, or pick another key in settings. If you started TWS with "Run as administrator", start it normally instead. |
+| `mic-test` says "mic is silent" | In Windows Settings › Privacy & security › Microphone, turn on access for desktop apps. If that's already on, pick your mic in settings. |
+| It often mishears you | Raise your mic volume in Windows Sound settings until `mic-test` shows a level around 30–50%. |
+| No spoken replies | Make sure Windows is playing sound on the device you're listening to (Settings › System › Sound › Output). |
+| "Order state unknown" or "Check your platform" | Look in TWS. Your positions and orders there are always the truth. |
 
-- **Paper-account guard.** IBKR paper accounts start with `D`. In paper mode, Callout refuses to trade on any other account. Live mode needs `trading_mode = "live"`, a live port, **and** the `--live` flag.
-- **Push-to-talk only.** Audio is kept only while the key is held, so a TV or a friend can't place an order.
-- **Grammar-locked recognition.** The recognizer can only output known phrases. Unknown words, extra words, or confidence below `min_confidence` are rejected with "Didn't catch that. Nothing sent."
-- **Readback and confirm** (on by default). The readback includes the position change. If your position changes between the readback and "confirm" (say, a manual fill in TWS), the order is not sent. Anything unclear after a readback (a mumble, a stray tap of the key) cancels the pending order.
-- **Limits.** `max_position`, a 1-second cooldown between orders, and `max_orders_per_minute`. Orders that reduce exposure are always allowed.
-- **Market hours.** Orders are blocked outside CME Globex hours (Sun 6pm to Fri 5pm ET, plus the 5 to 6pm daily halt). Exchange holidays aren't modelled; IBKR rejects those orders itself.
-- **Fill verification.** After every order, filled or not, Callout asks IBKR for the real position and warns you if it isn't what it expected (for example, a fill that arrived after a cancel).
-- **Timeouts.** A market order not filled within `order_timeout_s` is cancelled. If the cancel isn't confirmed, you're told the order may still be working. Every request to TWS has a 10-second timeout, so a frozen TWS can't hang the app.
-- **Disconnects.** If TWS drops, trading is blocked until it reconnects and positions resync. Callout reconnects automatically. An order whose state couldn't be confirmed is read back as "state unknown, check your platform".
-- **Front month and roll.** Callout trades the front quarterly contract and rolls `roll_days_before_expiry` (default 8) days before expiry, but never while you hold the current contract. If you hold an older expiry, buy and sell are blocked until you flatten, so limits and readbacks always see your whole position.
-- **Flatten and working orders.** Flatten cancels working orders first, so a resting stop can't fire after you're flat. The IBKR API can only cancel orders this app placed. If orders entered by hand in TWS remain, flatten tells you. Set `flatten_cancels_all_orders = true` to use IBKR's global cancel instead (it cancels every open order in the account, stocks included).
+---
 
-## Logs
+## How Callout keeps you safe
 
-Every utterance, decision, order and fill is written to `logs/callout-YYYY-MM-DD.jsonl` with millisecond timestamps and latency, including key-release-to-fill time:
+- It won't trade a real-money account unless you deliberately set it up for live trading.
+- It only listens while you hold the talk key.
+- It only understands its exact commands. Everything else is ignored.
+- It reads every order back and waits for "confirm."
+- It limits how big your position can get, and how fast orders can be sent.
+- After every order, it checks your real position with Interactive Brokers and warns you if anything doesn't match.
 
-```json
-{"ts": "2026-11-09T10:02:13.481-05:00", "event": "order_result", "contract": "ESZ6", "action": "BUY",
- "status": "Filled", "filled": 1, "avg_price": 6001.25, "send_to_done_ms": 212.4, "release_to_done_ms": 1430.9}
-```
+---
 
-Event types: `startup`, `heard` (with `rejected` reason if any), `awaiting_confirm`, `confirmed`, `cancelled`, `blocked`, `order_sent`, `order_result`, `position_mismatch`, `orders_cancelled`, `flatten_incomplete`, `contract_roll`, `contract_roll_deferred`, `broker_error`, `disconnected`, `reconnect_failed`, `error`, `shutdown`.
+Mac or Linux, or want to know how it works inside? See [DEVELOPING.md](DEVELOPING.md).
 
-## Going live
-
-1. Run on paper until the logs look boring.
-2. Enable MES in `config.toml` (`[instruments.MES] enabled = true`, say "buy micro E S"). It's a tenth the size of ES. Consider disabling ES.
-3. Set `trading_mode = "live"` and the live port (TWS 7496 / Gateway 4001).
-4. `python -m callout run --live`
-
-## Config
-
-See `config.example.toml`. Everything is commented. Common changes:
-
-- `push_to_talk`: pick a key your trading platform doesn't use, since the key press still reaches the focused app.
-- `input_device`: which microphone to use. Run `python -m callout devices` to list them, then put the number or part of the name here.
-- `require_confirmation = false`: one-step orders. Faster, but a misheard word becomes a trade.
-- `quantity`, `max_position`: per instrument.
-- `spoken`: the phrases for each instrument. Phrases using words the speech model doesn't know are dropped at startup with a note.
-
-## Mic troubleshooting
-
-`mic-test` prints the length and peak level of each recording under what it heard.
-
-- **`level 0%` / "mic is silent"**: the app is getting silence. Check Windows *Settings › Privacy & security › Microphone*: both "Microphone access" and "Let desktop apps access your microphone" must be on. If they are, it's probably the wrong mic: run `python -m callout devices` and set `input_device`.
-- **"no audio is arriving"**: the mic stream isn't delivering anything. Pick a different entry for the same mic in `devices` (they're listed once per Windows audio system: MME, DirectSound, WASAPI).
-- **Quiet (under ~10%)**: raise the input level in Windows sound settings or move closer.
-- **Loud enough but still not recognised**: tell me what it heard. The phrases or `min_confidence` may need tuning.
-
-## Project layout
-
-```
-callout/
-  cli.py            commands: init, check, devices, mic-test, run
-  engine.py         intent -> risk -> confirm -> order -> readback
-  intents.py        phrase grammar and strict parser
-  risk.py           limits, cooldown, rate limit, market hours
-  contracts.py      expiries, front month, roll
-  stt.py            Vosk speech-to-text, grammar-locked
-  audio.py          mic capture, push-to-talk
-  tts.py            spoken readback
-  journal.py        JSONL log
-  brokers/
-    base.py         Broker interface
-    ibkr.py         Interactive Brokers (ib_async)
-    sim.py          simulated fills
-tests/              python -m pytest
-```
-
-## Extending
-
-- **Another broker:** subclass `brokers.base.Broker` (connect, front_month, position, positions, market_order, cancel_open_orders) and add it to `brokers/__init__.py`. The engine doesn't change.
-- **More commands** (e.g. "buy 2 E S", limit orders, stocks by dollar amount): add phrases in `intents.py`. For free-form speech, a larger model or an LLM can replace the parser, as long as it outputs the same `Intent` objects and goes through the same risk and confirm path.
-
-## Known limitations
-
-- Market orders only. No brackets or stops yet.
-- One account per session.
-- Orders entered by hand in TWS can only be cancelled by flatten with the global-cancel setting (see Safety).
-- No daily loss limit yet.
-
-## License
-
-Not chosen yet. Pick one before making the repo public.
+**License:** not chosen yet.

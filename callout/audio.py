@@ -44,6 +44,17 @@ def list_input_devices() -> list[dict]:
     return out
 
 
+def main_input_devices() -> list[dict]:
+    """One entry per mic: just the default audio system's list (MME on Windows)."""
+    import sounddevice as sd
+
+    try:
+        api = sd.query_hostapis(sd.default.hostapi)["name"]
+    except Exception:
+        return list_input_devices()
+    return [d for d in list_input_devices() if d["hostapi"] == api]
+
+
 def resolve_input_device(spec: str | int | None):
     """'' -> system default; '3' -> device 3; 'yeti' -> first input device whose name contains it."""
     if spec is None or str(spec).strip() == "":

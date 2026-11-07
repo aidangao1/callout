@@ -198,7 +198,16 @@ async def cmd_mic_test(args) -> int:
     queue: asyncio.Queue = asyncio.Queue()
     talker, hint = _make_talker(cfg, lambda pcm, t: loop.call_soon_threadsafe(queue.put_nowait, (pcm, t)))
     talker.start()
-    out(f"Mic test. {hint} Nothing is traded. Ctrl+C to quit.")
+    try:
+        from .audio import main_input_devices
+
+        others = [d for d in main_input_devices() if d["name"] != talker.recorder.device_name]
+        if others:
+            out("Other microphones: " + "; ".join(f"{d['index']} = {d['name']}" for d in others))
+            out('  To use one, put its number in config.toml under [voice], e.g. input_device = "2"')
+    except Exception:
+        pass
+    out(f"Mic test. {hint} Nothing is traded. Close the window or press Ctrl+C to quit.")
     out("Commands: " + ", ".join(sorted(parser.phrases)))
     out("Also try things that AREN'T commands (\"flat\", \"yes\", a cough): they should all say REJECT.")
     try:
