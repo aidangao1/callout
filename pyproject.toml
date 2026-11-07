@@ -9,6 +9,7 @@ description = "Voice-command order entry for Interactive Brokers futures (buy ES
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
+authors = [{ name = "Aidan Gao" }]
 dependencies = [
   "ib_async>=2.0",
   "vosk>=0.3.45",

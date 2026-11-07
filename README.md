@@ -171,4 +171,4 @@ Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mista
 
 Mac or Linux, or want to know how it works inside? See [DEVELOPING.md](DEVELOPING.md).
 
-**License:** [Apache 2.0](LICENSE). Provided as is, with no warranty: you are responsible for every order it places.
+**License:** Copyright 2026 Aidan Gao. Licensed under [Apache 2.0](LICENSE); see [NOTICE](NOTICE). Provided as is, with no warranty: you are responsible for every order it places.

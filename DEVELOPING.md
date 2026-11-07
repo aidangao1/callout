@@ -189,4 +189,4 @@ Run the tests with `pip install -e .[dev]` then `python -m pytest`.
 
 ## License
 
-[Apache 2.0](LICENSE).
+Copyright 2026 Aidan Gao. [Apache 2.0](LICENSE); see [NOTICE](NOTICE). Anyone redistributing Callout must keep the NOTICE file.
