@@ -108,6 +108,7 @@ The screen gets bigger when the window does, so it works well filling a second m
 
 - Futures only have buy and sell. If you're long and say "sell," you go flat. If you're flat and say "sell," you go short. The readback always tells you which.
 - If Callout didn't understand you, it says **"Didn't catch that. Nothing sent."** Just say it again.
+- **The first order each time TWS starts, TWS shows a popup asking you to allow orders from the API.** Accept it within 10 seconds, or Callout cancels that order. The popup can open behind the Callout window, so check TWS if your first order seems to hang. A good habit: place and close one practice order at the start of each session.
 - If you don't say "confirm" within 10 seconds, the order is dropped and Callout says "Order expired. Nothing sent."
 - Flatten can only cancel orders Callout placed. If you placed an order by hand in TWS, flatten still closes your position, but a black banner stays at the top ("1 order still working in TWS") until you cancel that order in TWS. Otherwise it could open a new position.
 - ES trades **Sunday 6pm to Friday 5pm Eastern**, with a break from 5 to 6pm every weekday. Outside those hours, Callout says the market is closed.
