@@ -31,13 +31,16 @@ class Intent:
 
 
 # Words that sound like commands but aren't. The recognizer can only output phrases it
-# knows, so without these, "flat" gets rounded to "flatten" and "bye" to "buy e s".
-# With them it hears the decoy, which the parser rejects.
+# knows, so without these, "flat" gets rounded to "flatten". With them it hears the decoy,
+# which the parser rejects.
+#
+# Only near-misses of FLATTEN are listed: it acts immediately, with no readback. Buy and
+# sell are always read back first, so a near-miss there is harmless, while decoys that
+# sound like "E S" ("e", "s", "yes", "by"...) split the recognizer's attention and made it
+# reject clearly spoken commands (see the 2026-11-09 paper test log).
 DECOYS = (
-    "flat", "flats", "flattened", "flatter", "that", "fat",
-    "buy", "by", "bye", "sell", "cell", "sale", "cel",
-    "yes", "yeah", "okay", "conform", "concern", "can", "council",
-    "close", "all", "es", "s", "e", "mini", "easy", "ice", "is", "it", "the", "and", "a",
+    "flat", "flats", "flattened", "flatter", "fat", "that",
+    "close", "clothes", "all",
 )
 
 CONFIRM_WORDS = ("confirm", "yes confirm")

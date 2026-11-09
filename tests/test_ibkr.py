@@ -98,7 +98,7 @@ class FakeIB:
                     t.orderStatus.status = "Cancelled"
 
     async def reqAllOpenOrdersAsync(self):
-        return []
+        return [t for t in self.open if not t.done]
 
     def openTrades(self):
         return [t for t in self.open if not t.done]

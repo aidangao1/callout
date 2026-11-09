@@ -125,12 +125,15 @@ def feed_row(rec: dict) -> dict | None:
         row.update(kind="Warning", strong=True,
                    text=f"Broker shows {describe_position(rec.get('broker', 0))}, expected {describe_position(rec.get('expected', 0))}")
     elif ev == "orders_cancelled":
-        if not rec.get("requested") and not rec.get("still_working"):
+        n = int(rec.get("requested") or 0)
+        if not n:
+            return None  # leftover orders get their own Warning row from flatten_result
+        row.update(kind="Orders", text=f"Cancelled {n} working order{'s' if n > 1 else ''}")
+    elif ev == "flatten_result":
+        n = int(rec.get("still_working") or 0)
+        if not n:
             return None
-        text = f"Cancelled {rec.get('requested', 0)} working order(s)"
-        if rec.get("still_working"):
-            text += f" · {rec['still_working']} still working, cancel in TWS"
-        row.update(kind="Orders", text=text)
+        row.update(kind="Warning", strong=True, text=f"{n} order{'s' if n > 1 else ''} still working in TWS. Cancel in TWS.")
     elif ev == "flatten_incomplete":
         row.update(kind="Warning", strong=True, text="Flatten incomplete. Check TWS.")
     elif ev == "startup":
@@ -197,6 +200,9 @@ class Session:
         self.live_unlocked = cfg.broker.trading_mode != "live"
         self.test_mode = False
         self.test_result: dict | None = None
+        self.leftover = 0  # orders still working after a flatten Callout couldn't cancel
+        self._working_fresh: int | None = None
+        self._last_working = 0
         self._snapshot: dict = {"ready": False}
         self._queue: asyncio.Queue | None = None
         self._ever_connected = False
@@ -233,7 +239,8 @@ class Session:
         self.risk = RiskManager(cfg)
         self.broker = self._make_broker()
         self.engine = Engine(cfg, self.broker, self.speaker, self.journal, self.risk)
-        self._tasks = [asyncio.create_task(c) for c in (self._snapshot_loop(), self._consume(), self._watchdog())]
+        self._tasks = [asyncio.create_task(c) for c in
+                       (self._snapshot_loop(), self._consume(), self._watchdog(), self._orders_loop())]
         self._booted.set()
         if self.live_unlocked:
             await self._connect()
@@ -401,6 +408,17 @@ class Session:
             self._last_kind = "rejected"
         elif ev == "cancelled" and rec.get("by") != "new_command":
             self._last_kind = "cancelled"
+        elif ev == "flatten_result":
+            n = int(rec.get("still_working") or 0)
+            self.leftover = n
+            self._working_fresh = n
+            self._last_working = n
+            if n:
+                self._last_kind = "flat_warn"
+            elif not rec.get("ok"):
+                self._last_kind = "blocked"
+            elif rec.get("closed"):
+                self._last_kind = "filled"
         row = feed_row(rec)
         if row:
             self.feed.appendleft(row)
@@ -408,7 +426,26 @@ class Session:
 
     def _on_say(self, text: str) -> None:
         self.last = {"kind": self._last_kind or "info", "text": text}
+        if self._last_kind == "flat_warn":
+            self.last["working"] = self._last_working
         self._last_kind = None
+
+    async def _orders_loop(self) -> None:
+        """Ask TWS for a fresh working-order count every few seconds. Manual TWS orders don't send
+        Callout status updates, so this is how the screen notices when one is cancelled."""
+        while True:
+            await asyncio.sleep(1.0 if self.leftover else 3.0)
+            try:
+                if self.engine and self.broker and self.broker.connected:
+                    n = await asyncio.wait_for(self.engine.working_orders(), 12)
+                    if n is not None:
+                        self._working_fresh = n
+                        if self.leftover:
+                            self.leftover = n
+                else:
+                    self._working_fresh = None
+            except Exception:
+                pass
 
     def _market(self) -> tuple[bool, str]:
         now = time.monotonic()
@@ -471,7 +508,9 @@ class Session:
             "market_text": market_text,
             "instruments": instruments,
             "older": older,
-            "working": b.working_count(set(cfg.instruments)) if connected else None,
+            "working": (self._working_fresh if self._working_fresh is not None
+                        else b.working_count(set(cfg.instruments))) if connected else None,
+            "leftover": self.leftover if connected and not held else 0,
             "pending": eng.pending_summary(),
             "last": self.last,
             "heard": self.heard,

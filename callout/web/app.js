@@ -132,6 +132,12 @@ function renderRail() {
     alerts.push(`<strong>Not connected.</strong><span>${esc(state.broker_error)}</span><button type="button" class="btn" data-go="settings-trading" data-scroll="connection">Connection settings</button>`);
   if (state.voice === "loading") alerts.push(`<strong>Loading voice…</strong><span class="muted">The first start downloads the speech model (about 40 MB).</span>`);
   if (state.voice === "error" || state.voice_error) alerts.push(`<strong>Voice problem.</strong><span>${esc(state.voice_error)}</span><button type="button" class="btn" data-go="settings-audio">Microphone settings</button>`);
+  const n = state.leftover || 0;
+  const banner = bind("leftover")[0];
+  const bhtml = n ? `<svg width="22" height="22" aria-hidden="true"><use href="#i-warn"/></svg><span class="txt"><strong>${n} order${n > 1 ? "s" : ""} still working in TWS</strong><span>You're flat. If ${n > 1 ? "one" : "it"} fills, it opens a new position. Cancel ${n > 1 ? "them" : "it"} in TWS.</span></span>` : "";
+  if (banner.dataset.html !== bhtml) { banner.innerHTML = bhtml; banner.dataset.html = bhtml; }
+  banner.hidden = !n;
+
   const alert = bind("alert")[0];
   const html = alerts.join('<span style="flex-basis:100%"></span>');
   if (alert.dataset.html !== html) { alert.innerHTML = html; alert.dataset.html = html; }
@@ -179,7 +185,18 @@ function orderHTML() {
   let label, head, sub, small = false, mid = false, ic = "";
   const m = text.match(/^Filled\. (Bought|Sold) (\d+) (\S+) at ([\d.]+|an unknown price)\. You're (.+)\.$/);
   const f = text.match(/^Flat\. (.+?)\.?$/);
-  if (last.kind === "filled" && m) { label = "Filled"; head = `${m[1]} ${m[2]} ${m[3]}`; sub = `at ${m[4]} · you're ${m[5]}`; ic = icon("i-check"); mid = true; }
+  const w = last.kind === "flat_warn" ? last.working || 1 : 0;
+  const closed = (text.match(/^Flat\. (.+?)\. Warning/) || [])[1];
+  if (last.kind === "flat_warn" && (s.leftover || 0) > 0) {
+    const n = s.leftover;
+    label = "Flattened · check TWS"; head = "Flat"; ic = icon("i-warn"); mid = true;
+    sub = `${n} order${n > 1 ? "s" : ""} still working in TWS` + (closed ? ` · ${closed}` : "");
+  }
+  else if (last.kind === "flat_warn") {
+    label = "Flattened"; head = "Flat"; ic = icon("i-check"); mid = true;
+    sub = (closed ? `${closed} · ` : "") + "no orders left in TWS";
+  }
+  else if (last.kind === "filled" && m) { label = "Filled"; head = `${m[1]} ${m[2]} ${m[3]}`; sub = `at ${m[4]} · you're ${m[5]}`; ic = icon("i-check"); mid = true; }
   else if (last.kind === "filled" && f) { label = "Filled"; head = "Flat"; sub = f[1]; ic = icon("i-check"); }
   else if (last.kind === "rejected") { label = "Didn't catch that"; head = "Nothing sent"; small = true; sub = s.heard && s.heard.text ? `Heard "${s.heard.text}"` : text; }
   else if (last.kind === "blocked" || last.kind === "filled") {
@@ -194,7 +211,7 @@ function orderHTML() {
     small = true;
   }
   return {
-    key: `l|${label}|${head}|${sub}|${small}|${mid}|${live}`,
+    key: `l|${label}|${head}|${sub}|${small}|${mid}|${live}|${ic.length}`,
     html: `<div class="order-top"><p class="label">${esc(label)}</p>${liveFlag}</div>
       <div class="headline-row headline${small ? " small" : mid ? " mid" : ""}">${ic}<span>${esc(head)}</span></div>
       ${sub ? `<p class="subline">${esc(sub)}</p>` : ""}`,
@@ -243,9 +260,10 @@ function renderMini() {
   const pend = state.pending;
   let msg;
   if (pend) msg = pend.verb === "Flatten" ? `Flatten? ${Math.ceil(pend.left)}s` : `${pend.verb} ${pend.qty} ${pend.symbol} · ${pend.from} → ${pend.to} · ${Math.ceil(pend.left)}s`;
+  else if (state.leftover) msg = `${state.leftover} order${state.leftover > 1 ? "s" : ""} still working in TWS`;
   else msg = display(state.last && state.last.text) || (state.connected ? "Ready" : "Not connected");
   setText("mini-msg", msg);
-  for (const el of bind("mini-msg")) el.classList.toggle("pending", !!pend);
+  for (const el of bind("mini-msg")) el.classList.toggle("pending", !!pend || !!state.leftover);
   show("mini-actions", !pend);
   show("mini-confirm", !!pend);
 }

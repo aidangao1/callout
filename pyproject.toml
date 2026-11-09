@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "callout"
-version = "0.2.1"
+version = "0.2.2"
 description = "Voice-command order entry for Interactive Brokers futures (buy ES / sell ES / flatten)."
 readme = "README.md"
 requires-python = ">=3.11"

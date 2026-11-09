@@ -136,3 +136,29 @@ def test_feed_row_wording():
                   "filled": 1, "contract": "ESZ6", "avg_price": 6003.5, "release_to_done_ms": 1400.0})
     assert r["kind"] == "Filled" and r["text"] == "Sold 1 ESZ6 at 6003.50" and r["meta"] == "1.4 s" and r["time"] == "10:00:02"
     assert feed_row({"event": "shutdown"}) is None
+
+
+def test_flatten_with_manual_order_shows_warning_until_cancelled(session):
+    front = session.engine.contracts["ES"]
+    session.broker.set_position(front, 1)
+    session.broker.working = {"MANUAL-STOP": ("ES", False)}  # placed by hand in TWS
+    session.command("flatten")
+    assert wait_for(lambda: session.snapshot()["leftover"] == 1)
+    snap = session.snapshot()
+    assert snap["instruments"][0]["qty"] == 0
+    assert snap["last"]["kind"] == "flat_warn" and snap["last"]["working"] == 1
+    assert snap["working"] == 1
+    assert session.snapshot(-1)["feed"][0]["kind"] == "Warning"
+    del session.broker.working["MANUAL-STOP"]  # cancelled in TWS
+    assert wait_for(lambda: session.snapshot()["leftover"] == 0, timeout=4)
+    assert session.snapshot()["working"] == 0
+
+
+def test_no_warning_when_flatten_cancels_everything(session):
+    session.broker.set_position(session.engine.contracts["ES"], -1)
+    session.broker.working = {"OWN": ("ES", True)}
+    session.command("flatten")
+    assert wait_for(lambda: session.snapshot()["instruments"][0]["qty"] == 0)
+    time.sleep(0.3)
+    snap = session.snapshot()
+    assert snap["leftover"] == 0 and snap["last"]["kind"] == "filled"

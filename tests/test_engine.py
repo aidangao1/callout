@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import date, datetime
 
 import pytest
@@ -226,7 +227,7 @@ def test_flatten_warns_about_orders_it_cannot_cancel():
     broker.working = {"A": ("ES", True), "B": ("ES", False)}  # B was entered by hand in TWS
     say(engine, "flatten")
     assert speaker.said[-1].startswith("Flat. Sold 1 E S")
-    assert "1 working order I couldn't cancel" in speaker.said[-1]
+    assert "1 order is still working in TWS" in speaker.said[-1]
     assert broker.working == {"B": ("ES", False)}
 
 
@@ -321,3 +322,47 @@ def test_disconnected_broker_blocks_trades():
     asyncio.run(engine.start())  # reconnect path
     say(engine, "buy es")
     assert pos(engine, broker) == 1
+
+
+def test_flatten_does_not_wait_for_orders_it_cannot_cancel():
+    """The paper test showed flatten taking 3.4 s while it waited for a manual stop to go away."""
+    engine, broker, speaker, journal, _ = make()
+    broker.set_position(engine.contracts["ES"], 1)
+    broker.working = {"MANUAL": ("ES", False)}
+    t = time.monotonic()
+    say(engine, "flatten")
+    assert time.monotonic() - t < 1.0
+    assert pos(engine, broker) == 0
+    assert events(journal, "flatten_result")[0]["still_working"] == 1
+
+
+def test_readback_expiry_is_announced_when_it_happens():
+    engine, broker, speaker, journal, clock = make(confirm_timeout_s=0.2)
+
+    async def go():
+        await engine.handle_text("buy es", Meta())
+        await asyncio.sleep(0.5)
+
+    asyncio.run(go())
+    assert speaker.said[-1] == "Order expired. Nothing sent."
+    assert events(journal, "cancelled")[-1]["by"] == "timeout"
+    assert engine.pending is None
+
+
+def test_mumble_after_expiry_does_not_claim_a_cancel():
+    engine, broker, speaker, journal, clock = make(confirm_timeout_s=10)
+    say(engine, "buy es")
+    clock.t += 18  # like the paper test: the mumble came 18 s after the readback
+
+    async def go():
+        await engine.handle_transcript(Transcript("", 0.0, False), Meta(source="voice"))
+
+    asyncio.run(go())
+    assert speaker.said[-1] == "Didn't hear anything. Nothing sent."
+    assert [r["by"] for r in events(journal, "cancelled")] == ["timeout"]
+
+
+def test_working_orders_count_waits_for_commands():
+    engine, broker, *_ = make()
+    broker.working = {"A": ("ES", False), "B": ("NQ", False)}
+    assert asyncio.run(engine.working_orders()) == 1

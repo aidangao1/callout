@@ -173,11 +173,22 @@ def test_market_closed_blocks_orders_and_flatten():
 def test_decoys_are_heard_but_rejected():
     c = cfg()
     p = IntentParser(c)
-    for word in ("flat", "buy", "bye", "yes", "sell"):
+    for word in ("flat", "close", "flatter"):
         assert word in p.grammar
         assert p.parse(word) is None
     assert p.parse("flatten") == Intent(Action.FLATTEN, None)
+    assert p.parse("close all") == Intent(Action.FLATTEN, None)
     assert not set(p.decoys) & set(p.phrases)  # a decoy can never shadow a real command
+
+
+def test_no_decoys_that_sound_like_e_s():
+    """Decoys like "e", "s", "yes" or "by" ate the words of real commands in the paper test."""
+    p = IntentParser(cfg())
+    trade_words = {w for phrase in p.phrases if phrase.split()[0] in ("buy", "sell") for w in phrase.split()}
+    for d in p.decoys:
+        assert d not in trade_words, d
+    for bad in ("e", "s", "es", "yes", "by", "bye", "cell", "buy", "sell"):
+        assert bad not in p.decoys, bad
 
 
 def test_extra_decoys_from_config():

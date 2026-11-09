@@ -121,6 +121,14 @@ class Engine:
             "total": total,
         }
 
+    async def working_orders(self, symbols: set[str] | None = None) -> int | None:
+        """Fresh count of working orders, from any source. Waits for any command in progress,
+        because two overlapping open-order requests to TWS would stall one of them."""
+        async with self._lock:
+            if not self.broker.connected:
+                return None
+            return await self.broker.open_orders(symbols or set(self.cfg.instruments))
+
     async def refresh_contracts(self) -> None:
         async with self._lock:
             if self.broker.connected:
@@ -176,6 +184,7 @@ class Engine:
             self._reject_reply(said)
 
     def _reject_reply(self, said: str) -> None:
+        self._expire_pending()
         if self.pending:
             self.journal.log("cancelled", intent=self.pending.intent.describe(), by="unclear_input")
             self.pending = None
@@ -234,6 +243,7 @@ class Engine:
         if intent.action is Action.FLATTEN:
             if self.cfg.safety.confirm_flatten:
                 self.pending = Pending(intent, 0, 0, self._mono())
+                self._arm_expiry(self.pending)
                 target = self.cfg.instruments[intent.symbol].label if intent.symbol else "everything"
                 self.speaker.say(f"Flatten {target}. Say confirm.")
                 self.journal.log("awaiting_confirm", intent=intent.describe())
@@ -242,6 +252,22 @@ class Engine:
             return
 
         await self._request_trade(intent, meta)
+
+    def _arm_expiry(self, p: Pending) -> None:
+        """Say "expired" when the confirm window runs out, instead of waiting for the next command."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        delay = self.cfg.safety.confirm_timeout_s + 0.05
+        loop.call_later(delay, lambda: loop.create_task(self._expire_if_still(p)))
+
+    async def _expire_if_still(self, p: Pending) -> None:
+        async with self._lock:
+            if self.pending is p:
+                self.pending = None
+                self.journal.log("cancelled", intent=p.intent.describe(), by="timeout")
+                self.speaker.say("Order expired. Nothing sent.", interrupt=True)
 
     def _expire_pending(self) -> bool:
         p = self.pending
@@ -289,6 +315,7 @@ class Engine:
 
         if self.cfg.safety.require_confirmation:
             self.pending = Pending(intent, current, resulting, self._mono())
+            self._arm_expiry(self.pending)
             verb = "Buy" if intent.action is Action.BUY else "Sell"
             self.journal.log(
                 "awaiting_confirm", intent=intent.describe(), position=current, resulting=resulting, quantity=qty
@@ -349,9 +376,12 @@ class Engine:
             self.speaker.say(f"Blocked. {decision.reason}", interrupt=True)
             return
 
-        # Cancel working orders first, so a resting stop can't fire after we're flat.
+        # Cancel working orders first, so a resting stop can't fire after we're flat. Only wait for
+        # the ones Callout asked to cancel: orders it can't cancel won't go away, and every second
+        # counts on the panic button.
+        before = await self.broker.open_orders(symbols)
         cancelled = await self.broker.cancel_open_orders(symbols, self.cfg.safety.flatten_cancels_all_orders)
-        still_working = await self._settle_open_orders(symbols)
+        still_working = await self._settle_open_orders(symbols, target=max(0, before - cancelled))
         self.journal.log("orders_cancelled", symbols=sorted(symbols), requested=cancelled, still_working=still_working)
 
         parts, problems = [], []
@@ -369,8 +399,10 @@ class Engine:
         left = await self._settle_positions(symbols)
         tail = ""
         if still_working:
-            tail = (f" Warning: {still_working} working order{'s' if still_working > 1 else ''} I couldn't cancel. "
-                    "Cancel in your platform.")
+            n = still_working
+            tail = (f" Warning: {n} order{'s are' if n > 1 else ' is'} still working in TWS. "
+                    f"Cancel {'them' if n > 1 else 'it'} there.")
+        self.journal.log("flatten_result", ok=not (problems or left), closed=parts, still_working=still_working)
         if problems or left:
             detail = "; ".join(problems) or ", ".join(f"{describe_position(q)} {c.local_symbol}" for c, q in left)
             self.journal.log("flatten_incomplete", problems=problems, remaining=[(c.local_symbol, q) for c, q in left])
@@ -437,10 +469,11 @@ class Engine:
             held = await self.broker.positions(symbols)
         return held
 
-    async def _settle_open_orders(self, symbols: set[str], timeout: float = 3.0) -> int:
+    async def _settle_open_orders(self, symbols: set[str], target: int = 0, timeout: float = 3.0) -> int:
+        """Wait (up to timeout) for working orders to drop to target. Returns how many are left."""
         deadline = time.monotonic() + timeout
         n = await self.broker.open_orders(symbols)
-        while n and time.monotonic() < deadline:
+        while n > target and time.monotonic() < deadline:
             await asyncio.sleep(0.1)
             n = await self.broker.open_orders(symbols)
         return n

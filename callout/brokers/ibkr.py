@@ -268,5 +268,12 @@ class IBKRBroker(Broker):
 
     async def open_orders(self, symbols: set[str]) -> int:
         self._require_connection()
-        await self._call("open orders", self.ib.reqAllOpenOrdersAsync())
-        return len(self._working(symbols))
+        trades = await self._call("open orders", self.ib.reqAllOpenOrdersAsync())
+        # TWS's fresh answer, not the local cache: a manual order cancelled in TWS never sends
+        # this client a status update, so the cache would keep counting it.
+        seen = {}
+        for t in trades or []:
+            k = t.contract
+            if k.secType == "FUT" and k.symbol in symbols and not t.isDone():
+                seen[getattr(t.order, "permId", 0) or id(t)] = t
+        return len(seen)
