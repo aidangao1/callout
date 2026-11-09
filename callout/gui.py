@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from pathlib import Path
 
 from .config import ConfigError, load_config
@@ -64,17 +65,74 @@ class Api:
         return True
 
     def set_mini(self, on):
+        """Shrink to the always-on-top strip, or go back to the full window.
+
+        Page calls arrive on a background thread. Changing a window's size or
+        always-on-top state from a background thread can freeze a Windows app,
+        so the change is handed to the window's own thread and this call
+        returns right away.
+        """
         w = self._window
         if w is None:
             return False
+        on = bool(on)
         if on:
-            self._full_size = (w.width, w.height)
-            w.resize(*MINI_SIZE)
-            w.on_top = True
-        else:
-            w.on_top = False
-            w.resize(*self._full_size)
+            try:
+                size = (w.width, w.height)  # reading the size is safe from any thread
+                if size[0] > MINI_SIZE[0] + 50:
+                    self._full_size = size
+            except Exception:
+                pass
+        width, height = MINI_SIZE if on else self._full_size
+        if not _on_window_thread(w, lambda form: _apply_winforms(form, width, height, on)):
+            # Not the Windows backend: use the library's own calls, off this thread.
+            threading.Thread(target=_apply_generic, args=(w, width, height, on), daemon=True).start()
         return True
+
+
+def _on_window_thread(window, fn) -> bool:
+    """Run fn(form) on the Windows window's own thread, without waiting. False if not on WinForms."""
+    try:
+        from System import Action  # type: ignore[import-not-found]
+        from webview.platforms.winforms import BrowserView  # type: ignore[import-not-found]
+    except Exception:
+        return False
+    form = BrowserView.instances.get(window.uid)
+    if form is None or not hasattr(form, "BeginInvoke"):
+        return False
+    form.BeginInvoke(Action(lambda: fn(form)))
+    return True
+
+
+def _apply_winforms(form, width: int, height: int, on_top: bool) -> None:
+    try:
+        if on_top:
+            form.resize(width, height, _north_west())
+            form.TopMost = True
+        else:
+            form.TopMost = False
+            form.resize(width, height, _north_west())
+        form.Activate()
+    except Exception as e:  # never let a window tweak take the app down
+        print(f"Mini mode: couldn't resize the window ({e}). Resize it by hand.")
+
+
+def _apply_generic(window, width: int, height: int, on_top: bool) -> None:
+    try:
+        if on_top:
+            window.resize(width, height)
+            window.on_top = True
+        else:
+            window.on_top = False
+            window.resize(width, height)
+    except Exception as e:
+        print(f"Mini mode: couldn't resize the window ({e}). Resize it by hand.")
+
+
+def _north_west():
+    from webview.window import FixPoint
+
+    return FixPoint.NORTH | FixPoint.WEST
 
 
 def run_app(config_path: str = "config.toml", use_sim: bool = False) -> int:
