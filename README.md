@@ -54,7 +54,7 @@ Then set up the safety settings in the next section. They take two minutes.
 Turning on the API lets programs place orders through TWS, so lock it down:
 
 1. **Only this computer.** In API › Settings, keep **Allow connections from localhost only** ticked and don't add other trusted IPs. With the API on, *any* program on this computer can place orders through TWS, not just Callout.
-2. **A size limit in TWS itself.** In Global Configuration, open **Presets › Futures** and set the **Precautionary Settings** size limit, for example 2 contracts. TWS then stops oversized orders even if Callout ever had a bug.
+2. **A size limit in TWS itself.** In Global Configuration, open **Presets › Futures** and set the **Precautionary Settings**: size limit 2 contracts, and a total value limit of about $1,000,000 so normal ES orders pass without a popup. Then in **API › Precautions**, keep **Bypass Order Precautions for API Orders** *unticked*. When it's ticked, TWS lets API orders past these limits without a warning, so the limit wouldn't protect you. With it unticked, an oversized order gets stuck on a TWS popup and Callout cancels it after 10 seconds.
 3. **Daily restart outside trading hours.** TWS restarts or logs off once a day. In **Lock and Exit**, set that time outside your trading hours. Callout reconnects on its own afterwards, and TWS also needs a full login once a week.
 4. **A manual way out.** If TWS or your computer stops working with a position open, Callout can't close it. Know how to flatten in TWS or the IBKR mobile app.
 

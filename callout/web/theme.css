@@ -16,5 +16,6 @@
   --line: #D6D6D1;          /* hairlines, empty bars */
   --line-strong: #8A8A84;   /* stronger dividers, dashed boxes */
   --on-ink-muted: #B8B8B2;  /* secondary text on the dark rail */
+  --danger: #C8102E;        /* warnings that need action (readable on paper and white) */
   --font: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }

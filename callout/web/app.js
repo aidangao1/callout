@@ -182,15 +182,15 @@ function orderHTML() {
   const last = s.last || { kind: "idle", text: "" };
   const text = display(last.text);
   const icon = (id) => `<svg aria-hidden="true"><use href="#${id}"/></svg>`;
-  let label, head, sub, small = false, mid = false, ic = "";
+  let label, head, sub, small = false, mid = false, danger = false, ic = "";
   const m = text.match(/^Filled\. (Bought|Sold) (\d+) (\S+) at ([\d.]+|an unknown price)\. You're (.+)\.$/);
   const f = text.match(/^Flat\. (.+?)\.?$/);
   const w = last.kind === "flat_warn" ? last.working || 1 : 0;
   const closed = (text.match(/^Flat\. (.+?)\. Warning/) || [])[1];
   if (last.kind === "flat_warn" && (s.leftover || 0) > 0) {
     const n = s.leftover;
-    label = "Flattened · check TWS"; head = "Flat"; ic = icon("i-warn"); mid = true;
-    sub = `${n} order${n > 1 ? "s" : ""} still working in TWS` + (closed ? ` · ${closed}` : "");
+    label = "Flattened · check TWS"; head = "Warning"; ic = icon("i-warn"); mid = true; danger = true;
+    sub = `You're flat, but ${n} order${n > 1 ? "s are" : " is"} still working in TWS. Cancel ${n > 1 ? "them" : "it"} there.`;
   }
   else if (last.kind === "flat_warn") {
     label = "Flattened"; head = "Flat"; ic = icon("i-check"); mid = true;
@@ -211,9 +211,9 @@ function orderHTML() {
     small = true;
   }
   return {
-    key: `l|${label}|${head}|${sub}|${small}|${mid}|${live}|${ic.length}`,
+    key: `l|${label}|${head}|${sub}|${small}|${mid}|${danger}|${live}|${ic.length}`,
     html: `<div class="order-top"><p class="label">${esc(label)}</p>${liveFlag}</div>
-      <div class="headline-row headline${small ? " small" : mid ? " mid" : ""}">${ic}<span>${esc(head)}</span></div>
+      <div class="headline-row headline${small ? " small" : mid ? " mid" : ""}${danger ? " danger" : ""}">${ic}<span>${esc(head)}</span></div>
       ${sub ? `<p class="subline">${esc(sub)}</p>` : ""}`,
   };
 }

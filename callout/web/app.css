@@ -80,6 +80,7 @@ select:focus:not(:focus-visible) { outline: none; }
 .headline.small { font-size: clamp(44px, 5vw, 120px); }
 .headline-row { display: flex; align-items: center; gap: 0.25em; }
 .headline-row svg { width: 0.55em; height: 0.55em; flex: none; }
+.headline-row.danger { color: var(--danger); }
 .subline { margin: 0; padding-left: 14%; font-size: clamp(18px, 1.7vw, 40px); }
 .countdown { height: 8px; background: var(--line); }
 .countdown div { height: 100%; width: 100%; background: var(--ink); transition: width 0.15s linear; }
