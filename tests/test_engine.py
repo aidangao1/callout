@@ -150,7 +150,7 @@ def test_rejected_order_is_reported():
     broker.reject_next = "No trading permissions for futures."
     say(engine, "buy es")
     assert pos(engine, broker) == 0
-    assert speaker.said[-1] == "Order rejected. No trading permissions for futures."
+    assert speaker.said[-1] == "No trading permissions for futures. Nothing filled."
 
 
 def test_unknown_text_does_nothing():

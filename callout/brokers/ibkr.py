@@ -12,6 +12,7 @@ from ..config import BrokerConfig, Instrument
 from ..contracts import choose_front_month
 from ..risk import ET
 from .base import Broker, BrokerError, ContractRef, OrderResult
+from .ibkr_messages import plain_from_raw, plain_reason
 
 T = TypeVar("T")
 
@@ -102,7 +103,8 @@ class IBKRBroker(Broker):
         req_id, code, msg = (list(args) + [None, None, None])[:3]
         if code in INFO_CODES:
             return
-        self._on_event("broker_error", {"req_id": req_id, "code": code, "message": msg})
+        self._on_event("broker_error", {"req_id": req_id, "code": code, "message": plain_reason(code, msg or ""),
+                                        "raw": msg})
 
     async def _call(self, what: str, aw: Awaitable[T]) -> T:
         """Every request to TWS gets a timeout, and library errors become BrokerError."""
@@ -220,7 +222,7 @@ class IBKRBroker(Broker):
 
         st = trade.orderStatus
         errors = [e.message for e in trade.log if e.errorCode and e.errorCode not in INFO_CODES]
-        message = errors[-1] if errors else ""
+        message = plain_from_raw(errors[-1]) if errors else ""
         status = st.status
         if timed_out and status != "Filled":
             if trade.isDone():

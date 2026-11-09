@@ -356,7 +356,10 @@ class Engine:
         elif result.filled:
             msg = f"Partial fill, {result.filled} of {qty} at {_price(result.avg_price)}. {CHECK_PLATFORM}"
         else:
-            msg = f"Order {result.status.lower()}. {result.message}".strip()
+            if result.message and result.status in ("Inactive", "Cancelled", "ApiCancelled", "Rejected"):
+                msg = f"{result.message} Nothing filled."
+            else:
+                msg = f"Order {result.status.lower()}. {result.message}".strip()
         if actual != expected:
             self.journal.log("position_mismatch", symbol=sym, expected=expected, broker=actual)
             msg += f" Warning: the broker shows you {describe_position(actual)}. {CHECK_PLATFORM}"
@@ -394,7 +397,7 @@ class Engine:
                 past = "Sold" if action == "SELL" else "Bought"
                 parts.append(f"{past} {abs(qty)} {label} at {_price(result.avg_price)}")
             else:
-                problems.append(f"{contract.local_symbol} {result.status.lower()}")
+                problems.append(f"{contract.local_symbol}: {result.message or result.status.lower()}")
 
         left = await self._settle_positions(symbols)
         tail = ""
