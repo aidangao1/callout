@@ -171,6 +171,12 @@ Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mista
 
 ---
 
+## Suggestions
+
+Have an idea, a command you wish Callout understood, or something that didn't work? Tell us in this short form: **[Send a suggestion](https://forms.gle/QCx536MZtLBhVo1m7)**
+
+---
+
 Mac or Linux, or want to know how it works inside? See [DEVELOPING.md](DEVELOPING.md).
 
 **License:** Copyright 2026 Aidan Gao. Licensed under [Apache 2.0](LICENSE); see [NOTICE](NOTICE). Provided as is, with no warranty: you are responsible for every order it places.
