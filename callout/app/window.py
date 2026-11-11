@@ -6,7 +6,7 @@ import sys
 import threading
 from pathlib import Path
 
-from .config import ConfigError, load_config
+from ..config import ConfigError, load_config
 from .session import Session
 
 WEB = Path(__file__).with_name("web")
@@ -152,8 +152,12 @@ def run_app(config_path: str = "config.toml", use_sim: bool = False) -> int:
 
     api = Api(session)
     window = webview.create_window(
-        "Callout", url=str(WEB / "index.html"), js_api=api,
-        width=FULL_SIZE[0], height=FULL_SIZE[1], min_size=(MINI_SIZE[0], MINI_SIZE[1] - 30),
+        "Callout",
+        url=str(WEB / "index.html"),
+        js_api=api,
+        width=FULL_SIZE[0],
+        height=FULL_SIZE[1],
+        min_size=(MINI_SIZE[0], MINI_SIZE[1] - 30),
         background_color="#F4F4F1",
     )
     api._window = window

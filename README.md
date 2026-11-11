@@ -155,7 +155,7 @@ Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mista
 | The mic level bar doesn't move | In Windows Settings › Privacy & security › Microphone, turn on access for desktop apps. If that's already on, pick your mic in Settings › Microphone and voice. |
 | It often mishears you | Raise your mic volume in Windows Sound settings until the level bar reaches the shaded band when you talk. |
 | No spoken replies | Make sure Windows is playing sound on the device you're listening to (Settings › System › Sound › Output). |
-| The Callout window doesn't open | Look at the black window for an error. If it mentions WebView2, install **Microsoft Edge WebView2 Runtime** from microsoft.com (it's built into Windows 11). `start-console.bat` runs Callout without the window, and `mic-test.bat` and `check-connection.bat` test the mic and the TWS connection on their own. |
+| The Callout window doesn't open | Look at the black window for an error. If it mentions WebView2, install **Microsoft Edge WebView2 Runtime** from microsoft.com (it's built into Windows 11). In the `troubleshooting` folder, `start-console.bat` runs Callout without the window, and `mic-test.bat` and `check-connection.bat` test the mic and the TWS connection on their own. |
 | "Order state unknown" or "Check your platform" | Look in TWS. Your positions and orders there are always the truth. |
 
 ---

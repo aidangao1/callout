@@ -1,24 +1,21 @@
+"""The order engine against the simulator: readback, confirm, limits, flatten, failures."""
+
 import asyncio
 import time
 from datetime import date, datetime
 
 import pytest
 
+from callout.brokers.base import BrokerError, ContractRef
 from callout.brokers.sim import SimBroker
 from callout.config import load_config
-from callout.engine import Engine, Meta
-from callout.journal import NullJournal
-from callout.risk import ET, RiskManager
-from callout.stt import Transcript
-from callout.tts import SilentSpeaker
-
-
-class Clock:
-    def __init__(self):
-        self.t = 1000.0
-
-    def __call__(self):
-        return self.t
+from callout.trading.engine import Engine, Meta
+from callout.trading.journal import NullJournal
+from callout.trading.market_hours import ET
+from callout.trading.risk import RiskManager
+from callout.voice.recognizer import Transcript
+from callout.voice.speaker import SilentSpeaker
+from helpers import Clock
 
 
 def make(confirm=True, **safety):
@@ -128,8 +125,6 @@ def test_max_position_blocks():
 
 def test_flatten_closes_all_expiries_without_confirm():
     engine, broker, speaker, journal, _ = make()
-    from callout.brokers.base import ContractRef
-
     old = ContractRef("ES", "ESU6", date(2026, 9, 18))
     broker.set_position(old, -1)
     broker.set_position(engine.contracts["ES"], 2)
@@ -207,8 +202,6 @@ def test_market_closed_blocks_everything():
 def test_heads_up_for_old_contract_at_startup():
     cfg = load_config(None)
     broker = SimBroker(fill_delay_s=0, today=date(2026, 11, 9))
-    from callout.brokers.base import ContractRef
-
     broker.set_position(ContractRef("ES", "ESU6", date(2026, 9, 18)), 1)
     speaker = SilentSpeaker()
     engine = Engine(cfg, broker, speaker, NullJournal())
@@ -216,9 +209,7 @@ def test_heads_up_for_old_contract_at_startup():
     assert "ESU6" in speaker.said[0] and "flatten" in speaker.said[0]
 
 
-# ---- regression tests for the independent review findings -------------------------------------
-
-from callout.brokers.base import BrokerError, ContractRef  # noqa: E402
+# ---- regression tests from the independent code review and the paper test ---------------------
 
 
 def test_flatten_warns_about_orders_it_cannot_cancel():

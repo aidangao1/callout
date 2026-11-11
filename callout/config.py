@@ -1,10 +1,19 @@
-"""Loads and validates config.toml into plain dataclasses."""
+"""Settings: the config.toml file, loaded into plain dataclasses, validated, and saved back."""
 
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
+
+import tomli_w
+
+TEMPLATE = Path(__file__).with_name("config_template.toml")
+
+# Standard Interactive Brokers API ports, by (app, account type).
+PORTS = {("tws", "paper"): 7497, ("tws", "live"): 7496, ("gateway", "paper"): 4002, ("gateway", "live"): 4001}
+LIVE_PORTS = {7496, 4001}
+PAPER_PORTS = {7497, 4002}
 
 
 class ConfigError(ValueError):
@@ -131,12 +140,12 @@ def validate(cfg: Config) -> None:
         raise ConfigError("broker.type must be 'ibkr' or 'sim'")
     if b.trading_mode not in ("paper", "live"):
         raise ConfigError("broker.trading_mode must be 'paper' or 'live'")
-    if b.trading_mode == "paper" and b.port in (7496, 4001):
+    if b.trading_mode == "paper" and b.port in LIVE_PORTS:
         raise ConfigError(
             f"broker.port {b.port} is a LIVE port but trading_mode is 'paper'. "
             "Use 7497 (TWS paper) or 4002 (Gateway paper)."
         )
-    if b.trading_mode == "live" and b.port in (7497, 4002):
+    if b.trading_mode == "live" and b.port in PAPER_PORTS:
         raise ConfigError(f"broker.port {b.port} is a PAPER port but trading_mode is 'live'.")
     if not cfg.enabled_instruments:
         raise ConfigError("No instruments are enabled.")
@@ -151,3 +160,48 @@ def validate(cfg: Config) -> None:
         raise ConfigError("safety.max_position must be >= 1")
     if not 0 <= v.min_confidence <= 1:
         raise ConfigError("voice.min_confidence must be between 0 and 1")
+
+
+# ---- saving -------------------------------------------------------------------------------------
+
+_SAVE_HEADER = (
+    "# Callout settings. The app's Settings screen writes this file;\n"
+    "# you can also edit it by hand while Callout is closed.\n\n"
+)
+
+
+def default_port(app: str, mode: str) -> int:
+    """The standard port for 'tws' or 'gateway' with a 'paper' or 'live' account."""
+    return PORTS[(app, mode)]
+
+
+def app_for_port(port: int) -> str:
+    return "gateway" if port in (4001, 4002) else "tws"
+
+
+def config_to_dict(cfg: Config) -> dict:
+    def section(obj, cls) -> dict:
+        return {f.name: getattr(obj, f.name) for f in fields(cls)}
+
+    instruments = {}
+    for sym, inst in cfg.instruments.items():
+        d = asdict(inst)
+        d.pop("symbol", None)
+        if d.get("max_position") is None:
+            d.pop("max_position")
+        instruments[sym] = d
+    return {
+        "log_dir": cfg.log_dir,
+        "broker": section(cfg.broker, BrokerConfig),
+        "voice": section(cfg.voice, VoiceConfig),
+        "safety": section(cfg.safety, SafetyConfig),
+        "instruments": instruments,
+    }
+
+
+def save_config(cfg: Config, path: str | Path) -> None:
+    """Write cfg to path. Atomic on the same drive: a crash never leaves half a file."""
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(_SAVE_HEADER + tomli_w.dumps(config_to_dict(cfg)), encoding="utf-8")
+    tmp.replace(path)

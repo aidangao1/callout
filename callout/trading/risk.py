@@ -1,68 +1,21 @@
-"""Pre-trade checks. Every order goes through here before reaching the broker."""
+"""Pre-trade checks: position limit, order pace and market hours. Every order passes through here."""
 
 from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, time as dtime
-from typing import Callable
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
-from .config import Config
-
-ET = ZoneInfo("America/New_York")
+from ..config import Config
+from .market_hours import ET, cme_equity_index_open
 
 
 @dataclass
 class RiskDecision:
     ok: bool
     reason: str = ""
-
-
-def cme_equity_index_open(now: datetime) -> bool:
-    """CME Globex equity-index futures (ES/MES): Sun 6pm -> Fri 5pm ET, daily halt 5-6pm ET.
-
-    Exchange holidays aren't modelled; the broker rejects orders on those days anyway.
-    """
-    t = now.astimezone(ET)
-    wd, hm = t.weekday(), t.time()
-    five, six = dtime(17, 0), dtime(18, 0)
-    if wd == 5:  # Saturday
-        return False
-    if wd == 6:  # Sunday
-        return hm >= six
-    if wd == 4:  # Friday
-        return hm < five
-    return not (five <= hm < six)  # Mon-Thu daily maintenance halt
-
-
-def market_clock(now: datetime) -> tuple[bool, datetime]:
-    """(open now?, when that next changes) for CME equity-index futures, in ET."""
-    from datetime import timedelta
-
-    t = now.astimezone(ET)
-    is_open = cme_equity_index_open(t)
-    day = t.replace(hour=0, minute=0, second=0, microsecond=0)
-    at = lambda d, h: (day + timedelta(days=d)).replace(hour=h)  # noqa: E731
-    wd, h = t.weekday(), t.hour + t.minute / 60
-    if is_open:
-        if wd == 6 or h >= 18:  # evening session: closes tomorrow 5pm
-            return True, at(1, 17)
-        return True, at(0, 17)
-    if wd <= 3 and 17 <= h < 18:  # daily halt
-        return False, at(0, 18)
-    days_to_sunday = (6 - wd) % 7
-    return False, at(days_to_sunday, 18)
-
-
-def market_status_text(now: datetime) -> tuple[bool, str]:
-    is_open, change = market_clock(now)
-    t = now.astimezone(ET)
-    when = change.strftime("%I:%M %p").lstrip("0")
-    if change.date() != t.date():
-        when = change.strftime("%a ") + when
-    return is_open, ("Market open · closes " if is_open else "Market closed · opens ") + when + " ET"
 
 
 class RiskManager:

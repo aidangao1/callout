@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from .config import Config
+from ..config import Config
 
 
 class Action(str, Enum):
@@ -39,8 +39,15 @@ class Intent:
 # sound like "E S" ("e", "s", "yes", "by"...) split the recognizer's attention and made it
 # reject clearly spoken commands (see the 2026-11-09 paper test log).
 DECOYS = (
-    "flat", "flats", "flattened", "flatter", "fat", "that",
-    "close", "clothes", "all",
+    "flat",
+    "flats",
+    "flattened",
+    "flatter",
+    "fat",
+    "that",
+    "close",
+    "clothes",
+    "all",
 )
 
 CONFIRM_WORDS = ("confirm", "yes confirm")

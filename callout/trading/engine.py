@@ -8,17 +8,18 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
-from .brokers.base import Broker, BrokerError, ContractRef, OrderResult
-from .config import Config
+from ..brokers.base import Broker, BrokerError, ContractRef, OrderResult
+from ..config import Config
+from ..voice.intents import Action, Intent, IntentParser
+from ..voice.recognizer import Transcript
+from ..voice.speaker import Speaker
 from .contracts import describe_position
-from .intents import Action, Intent, IntentParser
 from .journal import Journal
 from .risk import RiskManager
-from .stt import Transcript
-from .tts import Speaker
 
 CHECK_PLATFORM = "Check your platform."
 
@@ -108,8 +109,15 @@ class Engine:
             return None
         if p.intent.action is Action.FLATTEN:
             label = self.cfg.instruments[p.intent.symbol].symbol if p.intent.symbol else "all"
-            return {"verb": "Flatten", "qty": None, "symbol": label, "from": "", "to": "flat",
-                    "left": left, "total": total}
+            return {
+                "verb": "Flatten",
+                "qty": None,
+                "symbol": label,
+                "from": "",
+                "to": "flat",
+                "left": left,
+                "total": total,
+            }
         inst = self.cfg.instruments[p.intent.symbol]
         return {
             "verb": "Buy" if p.intent.action is Action.BUY else "Sell",
@@ -144,8 +152,12 @@ class Engine:
                     # Never switch contracts under an open position: "sell" must keep closing it.
                     if sym not in self._roll_deferred:
                         self._roll_deferred.add(sym)
-                        self.journal.log("contract_roll_deferred", symbol=sym, old=old.local_symbol, new=new.local_symbol)
-                        self.speaker.say(f"{inst.label} roll to {new.local_symbol} waits until you're flat in {old.local_symbol}.")
+                        self.journal.log(
+                            "contract_roll_deferred", symbol=sym, old=old.local_symbol, new=new.local_symbol
+                        )
+                        self.speaker.say(
+                            f"{inst.label} roll to {new.local_symbol} waits until you're flat in {old.local_symbol}."
+                        )
                     continue
                 self._roll_deferred.discard(sym)
                 self.journal.log("contract_roll", symbol=sym, old=old.local_symbol, new=new.local_symbol)
@@ -175,8 +187,9 @@ class Engine:
         else:
             await self.handle_text(tr.text, meta)
 
-    async def reject_input(self, reason: str, meta: Meta | None = None, said: str = "Didn't catch that.",
-                           text: str = "") -> None:
+    async def reject_input(
+        self, reason: str, meta: Meta | None = None, said: str = "Didn't catch that.", text: str = ""
+    ) -> None:
         """Anything unclear counts as 'not confirm': it also drops a pending order."""
         meta = meta or Meta(source="voice")
         async with self._lock:
@@ -336,8 +349,9 @@ class Engine:
         if problem:
             return await self._block(intent, problem)
         if current != expected_current:
-            return await self._block(intent, "Your position changed since the readback. Say it again.",
-                                     was=expected_current, now=current)
+            return await self._block(
+                intent, "Your position changed since the readback. Say it again.", was=expected_current, now=current
+            )
         qty, resulting = self._plan(intent, current)
         decision = self.risk.check_order(sym, current, resulting)  # re-check: time and limits may have moved
         if not decision.ok:
@@ -350,7 +364,9 @@ class Engine:
 
         if result.fully_filled:
             past = "Bought" if action == "BUY" else "Sold"
-            msg = f"Filled. {past} {qty} {inst.label} at {_price(result.avg_price)}. You're {describe_position(actual)}."
+            msg = (
+                f"Filled. {past} {qty} {inst.label} at {_price(result.avg_price)}. You're {describe_position(actual)}."
+            )
         elif result.status == "Unknown":
             msg = f"Order state unknown. {result.message} {CHECK_PLATFORM}"
         elif result.filled:
@@ -403,8 +419,10 @@ class Engine:
         tail = ""
         if still_working:
             n = still_working
-            tail = (f" Warning: {n} order{'s are' if n > 1 else ' is'} still working in TWS. "
-                    f"Cancel {'them' if n > 1 else 'it'} there.")
+            tail = (
+                f" Warning: {n} order{'s are' if n > 1 else ' is'} still working in TWS. "
+                f"Cancel {'them' if n > 1 else 'it'} there."
+            )
         self.journal.log("flatten_result", ok=not (problems or left), closed=parts, still_working=still_working)
         if problems or left:
             detail = "; ".join(problems) or ", ".join(f"{describe_position(q)} {c.local_symbol}" for c, q in left)
@@ -444,8 +462,9 @@ class Engine:
         )
         return result
 
-    async def _await_position(self, contract: ContractRef, expected: int, timeout: float = 1.5,
-                              settle: bool = False) -> int:
+    async def _await_position(
+        self, contract: ContractRef, expected: int, timeout: float = 1.5, settle: bool = False
+    ) -> int:
         """Ask the broker what the position really is after an order.
 
         After a fill, wait up to `timeout` for the broker to report it. After an

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "callout"
-version = "0.2.2"
+version = "0.2.3"
 description = "Voice-command order entry for Interactive Brokers futures (buy ES / sell ES / flatten)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 callout = "callout.cli:main"
@@ -32,7 +32,24 @@ callout = "callout.cli:main"
 include = ["callout*"]
 
 [tool.setuptools.package-data]
-callout = ["config_template.toml", "web/*", "web/fonts/*"]
+callout = ["config_template.toml", "app/web/*", "app/web/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = [
+  "UP042",   # keep Action(str, Enum): StrEnum would change how actions print in logs
+  "SIM105",  # try/except/pass reads fine for "best effort" cleanup
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["callout", "helpers"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]  # some tests import after pytest.importorskip

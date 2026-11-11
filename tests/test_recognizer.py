@@ -36,10 +36,12 @@ def install_fake_vosk(monkeypatch, vocab, result):
 
 
 def test_vocab_filter_and_confidence(monkeypatch):
-    from callout.stt import Transcriber
+    from callout.voice.recognizer import Transcriber
 
-    result = {"text": "buy e s", "result": [{"word": "buy", "conf": 0.98}, {"word": "e", "conf": 0.81},
-                                           {"word": "s", "conf": 0.93}]}
+    result = {
+        "text": "buy e s",
+        "result": [{"word": "buy", "conf": 0.98}, {"word": "e", "conf": 0.81}, {"word": "s", "conf": 0.93}],
+    }
     cap = install_fake_vosk(monkeypatch, {"buy", "sell", "e", "s", "confirm"}, result)
     t = Transcriber("vosk-model-small-en-us-0.15", ["buy e s", "sell e s", "buy es", "confirm"])
     assert t.dropped == ["buy es"]  # "es" not in the model's vocabulary
@@ -50,7 +52,7 @@ def test_vocab_filter_and_confidence(monkeypatch):
 
 
 def test_unknown_and_silence(monkeypatch):
-    from callout.stt import Transcriber
+    from callout.voice.recognizer import Transcriber
 
     install_fake_vosk(monkeypatch, {"buy", "e", "s"}, {"text": "[unk] e s", "result": [{"word": "[unk]", "conf": 1.0}]})
     tr = Transcriber("m", ["buy e s"]).transcribe(b"")

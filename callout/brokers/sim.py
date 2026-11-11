@@ -8,8 +8,8 @@ import random
 from datetime import date, datetime
 
 from ..config import Instrument
-from ..contracts import choose_front_month, local_symbol, quarterly_expiries
-from ..risk import ET
+from ..trading.contracts import choose_front_month, local_symbol, quarterly_expiries
+from ..trading.market_hours import ET
 from .base import Broker, ContractRef, OrderResult
 
 

@@ -1,5 +1,16 @@
-/* Layout and components. Colors and font come from theme.css. */
+/* Callout window: layout and components. Colors and the font come from theme.css.
 
+   1. Base           reset, focus rings, text helpers
+   2. Controls       buttons, inputs, meters
+   3. Frame          views, top bar, two-column body
+   4. Trading        rail, field, order card, talk button, activity
+   5. Settings       nav rail, sections, rows, connection
+   6. Setup          the four first-run steps
+   7. Mini mode
+   8. Overlays       live-money modal, toast
+*/
+
+/* ==== 1. Base ============================================================================== */
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased; }
@@ -7,37 +18,89 @@ button, input, select { font: inherit; color: inherit; border-radius: 0; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
 a { color: inherit; }
+[hidden] { display: none !important; }
+
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .on-ink :focus-visible, .rail :focus-visible { outline-color: var(--surface); }
 .inp:focus-visible, .num:focus-visible, .chip-add:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
 .btn.primary:focus-visible { outline-color: var(--surface); }
 select:focus:not(:focus-visible) { outline: none; }
-[hidden] { display: none !important; }
-.label { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.muted { color: var(--muted); }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.view { min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ---- top bar ------------------------------------------------------------------------------ */
+.label { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.label.ink { color: var(--ink); }
+.muted { color: var(--muted); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.hint.fine { font-size: 12px; }
+.text-sm { font-size: 13px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sprite { position: absolute; }
+.spacer { flex: 1 1 auto; }
+
+/* ==== 2. Controls ========================================================================== */
+.btn { min-height: 48px; padding: 0 22px; border: 2px solid var(--ink); background: var(--surface); color: var(--ink); font-weight: 500; }
+.btn.primary { background: var(--ink); color: var(--surface); font-weight: 700; }
+.btn + .btn.joined { border-left: 0; }
+.btn.big { min-height: clamp(56px, 4.6vw, 88px); padding: 0 clamp(26px, 2.8vw, 56px); font-size: clamp(15px, 1.25vw, 24px); }
+.btn.tall { min-height: 56px; }
+.btn.with-icon { display: flex; align-items: center; gap: 10px; }
+.btnpair { display: flex; flex-wrap: wrap; }
+[data-hold].holding:not(.flatten) { background: var(--muted); border-color: var(--muted); }
+
+.linkbtn { background: none; border: 0; padding: 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+.backlink { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+
+.inp { min-height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: var(--surface); }
+select.inp { padding: 0 10px; }
+.inp.port { width: 96px; }
+.inp.word { width: 120px; }
+.num { width: 88px; min-height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: var(--surface); font-size: 20px; font-weight: 700; }
+.field-label { display: flex; flex-direction: column; gap: 6px; }
+.field-label > span { font-size: 13px; color: var(--muted); }
+
+.seg { display: flex; }
+.seg label { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 2px solid var(--ink); cursor: pointer; }
+.seg label + label { border-left: 0; }
+.seg label:has(input:checked) { background: var(--ink); color: var(--surface); }
+.seg input { accent-color: var(--surface); }
+
+/* Level meter: the shaded band is where normal speech should land. */
+.meter { position: relative; height: 12px; border: 1.5px solid var(--ink); background: var(--surface); }
+.meter .band { position: absolute; left: 30%; width: 20%; top: 0; bottom: 0; background: var(--line); }
+.meter .lvl { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--ink); transition: width 0.08s linear; }
+.meter.tall { height: 20px; border-width: 2px; }
+span.meter, span.lvl { display: block; }
+span.lvl { height: 100%; }
+
+/* ==== 3. Frame ============================================================================= */
+.view { min-height: 100vh; display: flex; flex-direction: column; }
+.body { display: flex; flex-wrap: wrap; align-items: stretch; flex: 1 1 auto; }
+
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px; padding: 0 28px; min-height: 58px; background: var(--surface); border-bottom: 2.5px solid var(--ink); }
 .wordmark { font-size: 17px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.topnav { display: flex; gap: 22px; }
 .conn { display: flex; align-items: center; gap: 8px; }
 .dot { width: 9px; height: 9px; background: var(--ink); display: inline-block; flex: none; }
 .dot.off { background: transparent; border: 1.5px solid var(--ink); }
 .dot.wait { animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
+
+/* Paper / simulator / LIVE badge. LIVE is filled and larger so it can't be missed. */
 .badge { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 2px solid var(--ink); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px; white-space: nowrap; }
 .badge.live { background: var(--ink); color: var(--surface); font-size: 15px; min-height: 36px; padding: 0 14px; }
 .badge .acct { font-weight: 500; letter-spacing: 0; opacity: 0.8; text-transform: none; }
-.topbar .spacer { flex: 1 1 auto; }
-.topnav { display: flex; gap: 22px; }
-.linkbtn { background: none; border: 0; padding: 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
-.backlink { display: flex; align-items: center; gap: 8px; text-decoration: none; }
 
-/* ---- trading: rail ------------------------------------------------------------------------ */
-.body { display: flex; flex-wrap: wrap; align-items: stretch; flex: 1 1 auto; }
+/* ==== 4. Trading =========================================================================== */
+/* The trading screen fills the window: the rail never scrolls Flatten out of view,
+   and the field scrolls on its own. Narrow windows go back to one long page (end of section). */
+#view-trading { height: 100vh; }
+#view-trading .body { min-height: 0; overflow: hidden; flex-wrap: nowrap; }
+#view-trading .rail { overflow-y: auto; }
+#view-trading .field { overflow-y: auto; }
+
+/* rail (dark, left) */
 .rail { flex: 1 1 300px; max-width: clamp(300px, 26vw, 480px); background: var(--ink); color: var(--surface); padding: clamp(28px, 2.8vw, 48px) clamp(24px, 2.2vw, 40px) 28px; display: flex; flex-direction: column; gap: 26px; }
 .rail .label { color: var(--on-ink-muted); }
+.pos-block { display: flex; flex-direction: column; gap: 10px; }
 .pos-big { margin: 0; font-size: clamp(56px, 5.6vw, 140px); font-weight: 700; line-height: 0.9; letter-spacing: -0.03em; display: flex; flex-direction: column; }
 .pos-sub { margin: 0; color: var(--on-ink-muted); }
 .facts { margin: 0; font-size: 13px; }
@@ -49,34 +112,38 @@ select:focus:not(:focus-visible) { outline: none; }
 .notice-dark { margin: 0; padding: 12px; border: 1.5px dashed var(--on-ink-muted); font-size: 12px; color: var(--surface); }
 .toggle { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
 .toggle input { width: 20px; height: 20px; accent-color: var(--surface); cursor: pointer; }
-.flatten { margin-top: auto; position: relative; overflow: hidden; min-height: clamp(96px, 8vw, 160px); border: 0; background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 6px; padding: 16px 18px; text-align: left; user-select: none; touch-action: none; }
+
+/* Flatten: press and hold; the fill shows how long is left. */
+.flatten { margin-top: auto; position: sticky; bottom: 0; flex: none; overflow: hidden; min-height: clamp(96px, 8vw, 160px); border: 0; background: var(--surface); color: var(--ink); display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 6px; padding: 16px 18px; text-align: left; user-select: none; touch-action: none; }
 .flatten .t { font-size: clamp(22px, 1.9vw, 36px); font-weight: 700; letter-spacing: -0.01em; position: relative; }
 .flatten .s { font-size: 12px; color: var(--muted); position: relative; }
 .flatten .fill { position: absolute; inset: auto 0 0 0; height: 0; background: var(--line); }
 .flatten.holding .fill { height: 100%; transition: height 0.9s linear; }
 
-/* ---- trading: field ----------------------------------------------------------------------- */
+/* field (right) */
 .field { flex: 999 1 640px; min-width: 0; padding: clamp(26px, 2.5vw, 56px) clamp(28px, 3vw, 72px) 40px clamp(36px, 4.4vw, 96px); display: flex; flex-direction: column; gap: clamp(30px, 3vw, 64px); }
+
 .alert { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 14px 16px; border: 2px solid var(--ink); background: var(--surface); }
 .alert strong { font-size: 15px; }
+.alert .break { flex-basis: 100%; }
 .alert.danger { background: var(--ink); color: var(--surface); border-color: var(--ink); align-items: flex-start; padding: 16px 18px; }
 .alert.danger svg { flex: none; margin-top: 1px; }
 .alert.danger .txt { display: flex; flex-direction: column; gap: 4px; }
 .alert.danger strong { font-size: 17px; letter-spacing: -0.01em; }
+
 .heard-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 40px; padding-bottom: 20px; border-bottom: 1px solid var(--line-strong); }
+.heard-block { display: flex; flex-direction: column; gap: 6px; }
 .heard-text { margin: 0; font-size: clamp(22px, 2vw, 40px); font-weight: 500; min-height: 1.2em; }
 .meter-box { flex: 0 1 300px; margin-left: auto; display: flex; flex-direction: column; gap: 6px; }
-.meter { position: relative; height: 12px; border: 1.5px solid var(--ink); background: var(--surface); }
-.meter .band { position: absolute; left: 30%; width: 20%; top: 0; bottom: 0; background: var(--line); }
-.meter .lvl { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--ink); transition: width 0.08s linear; }
-.meter.tall { height: 20px; border-width: 2px; }
 
+/* order card: what's waiting for confirm, or the last result */
 .order-row { display: flex; flex-wrap: wrap; gap: 32px 40px; align-items: flex-start; }
 .order { flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: clamp(16px, 1.6vw, 32px); min-height: clamp(300px, 26vw, 520px); }
 .order-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .live-flag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--ink); color: var(--surface); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; }
 .secs { font-size: clamp(20px, 1.7vw, 36px); font-weight: 700; }
 .headline { margin: 0; font-size: clamp(64px, 8.75vw, 220px); font-weight: 700; line-height: 0.88; letter-spacing: -0.04em; word-break: break-word; }
+.headline.mid { font-size: clamp(52px, 6.2vw, 170px); }
 .headline.small { font-size: clamp(44px, 5vw, 120px); }
 .headline-row { display: flex; align-items: center; gap: 0.25em; }
 .headline-row svg { width: 0.55em; height: 0.55em; flex: none; }
@@ -84,14 +151,10 @@ select:focus:not(:focus-visible) { outline: none; }
 .subline { margin: 0; padding-left: 14%; font-size: clamp(18px, 1.7vw, 40px); }
 .countdown { height: 8px; background: var(--line); }
 .countdown div { height: 100%; width: 100%; background: var(--ink); transition: width 0.15s linear; }
-.btnpair { display: flex; flex-wrap: wrap; }
-.btn { min-height: 48px; padding: 0 22px; border: 2px solid var(--ink); background: var(--surface); color: var(--ink); font-weight: 500; }
-.btn.primary { background: var(--ink); color: var(--surface); font-weight: 700; }
-.btn + .btn.joined { border-left: 0; }
-.btn.big { min-height: clamp(56px, 4.6vw, 88px); padding: 0 clamp(26px, 2.8vw, 56px); font-size: clamp(15px, 1.25vw, 24px); }
-.hint { margin: 0; font-size: 13px; color: var(--muted); }
 
+/* hold-to-talk button */
 .talk { flex: 0 0 clamp(200px, 17vw, 340px); height: clamp(260px, 22vw, 420px); margin-top: clamp(56px, 5.6vw, 120px); border: 2px solid var(--ink); background: var(--ink); color: var(--surface); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: clamp(18px, 1.8vw, 32px); text-align: left; user-select: none; touch-action: none; }
+.talk-inner { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .talk .t { font-size: clamp(20px, 1.7vw, 36px); font-weight: 700; line-height: 1.05; }
 .talk .s { font-size: 13px; color: var(--on-ink-muted); }
 .talk .meter { width: 100%; border-color: var(--surface); background: transparent; }
@@ -101,6 +164,7 @@ select:focus:not(:focus-visible) { outline: none; }
 .talk.on .meter { border-color: var(--ink); }
 .talk.on .meter .lvl { background: var(--ink); }
 
+/* activity list */
 .activity { margin-left: 12%; display: flex; flex-direction: column; border-top: 2.5px solid var(--ink); }
 .act-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding: 14px 0 6px; }
 .tabs { display: flex; gap: 18px; }
@@ -113,41 +177,59 @@ select:focus:not(:focus-visible) { outline: none; }
 .row.strong .kind { font-weight: 700; }
 .empty { padding: 14px 0; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
 
-/* ---- settings and setup ------------------------------------------------------------------- */
+@media (max-width: 939px) {
+  #view-trading { height: auto; }
+  #view-trading .body { flex-wrap: wrap; }
+  #view-trading .body, #view-trading .rail, #view-trading .field { overflow: visible; }
+  .rail { max-width: none; }
+}
+
+/* ==== 5. Settings ========================================================================== */
+/* The dark nav rail is shared with setup. */
 .navrail { flex: 1 1 260px; max-width: 300px; background: var(--ink); color: var(--surface); padding: 36px 0 28px; display: flex; flex-direction: column; }
 .navrail button, .navrail li { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 28px; border: 0; background: transparent; color: var(--surface); text-align: left; width: 100%; }
 .navrail button[aria-current="page"], .navrail li[aria-current="step"] { background: var(--surface); color: var(--ink); font-weight: 700; }
 .navrail .bottom { margin-top: auto; border-top: 1px solid var(--muted); color: var(--on-ink-muted); }
 .content { flex: 999 1 600px; min-width: 0; padding: 40px 48px 56px 56px; display: flex; flex-direction: column; }
+
+/* a section: heading on the left, controls on the right */
 .sec { display: flex; flex-wrap: wrap; gap: 16px 48px; padding: 24px 0 36px; border-top: 2.5px solid var(--ink); }
 .sec-head { flex: 1 1 200px; max-width: 260px; display: flex; flex-direction: column; gap: 8px; }
 .sec-head h2 { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
 .sec-head p { margin: 0; font-size: 13px; color: var(--muted); }
 .sec-body { flex: 3 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.sec-body.lines { gap: 0; }
+.sec-body.inline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; }
+
+/* one setting per line */
 .line { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid var(--line); }
 .line:last-child { border-bottom: 0; }
 .line .two { display: flex; flex-direction: column; gap: 2px; }
 .line .two small { font-size: 12px; color: var(--muted); }
 .line input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--ink); cursor: pointer; }
 .line input[type="range"] { width: 240px; accent-color: var(--ink); }
-.num { width: 88px; min-height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: var(--surface); font-size: 20px; font-weight: 700; }
-.inp { min-height: 48px; padding: 0 12px; border: 2px solid var(--ink); background: var(--surface); }
-select.inp { padding: 0 10px; }
-.field-label { display: flex; flex-direction: column; gap: 6px; }
-.field-label > span { font-size: 13px; color: var(--muted); }
+.below-lines { padding-top: 16px; }
+details.more { padding-top: 14px; }
+details summary { cursor: pointer; min-height: 32px; font-size: 13px; color: var(--muted); }
+details[open] summary { margin-bottom: 4px; }
+
+/* microphone */
 .joined-row { display: flex; flex-wrap: wrap; align-items: flex-end; }
+.joined-row > .field-label { flex: 1 1 300px; }
 .joined-row > .btn { border-left: 0; }
-.seg { display: flex; }
-.seg label { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 2px solid var(--ink); cursor: pointer; }
-.seg label + label { border-left: 0; }
-.seg label:has(input:checked) { background: var(--ink); color: var(--surface); }
-.seg input { accent-color: var(--surface); }
+.level-block { display: flex; flex-direction: column; gap: 8px; }
+.action-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.action-row.indent { padding-left: 12%; }
+
+/* talk key and ignored words */
 .keycap { display: inline-flex; align-items: center; justify-content: center; min-width: 88px; min-height: 64px; padding: 0 16px; background: var(--ink); color: var(--surface); font-weight: 700; font-size: 28px; }
 .keycap.capturing { background: var(--surface); color: var(--ink); border: 2px dashed var(--ink); font-size: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chip { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 4px 0 12px; border: 2px solid var(--ink); }
 .chip button { border: 0; background: transparent; padding: 8px; display: flex; }
 .chip-add { min-height: 40px; padding: 0 12px; border: 2px dashed var(--line-strong); background: transparent; width: 170px; }
+
+/* instrument cards (ES / MES): offset on purpose, ON is solid, OFF is dashed */
 .inst-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .inst { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 150px; border: 2px dashed var(--line-strong); color: var(--muted); cursor: pointer; }
 .inst + .inst { margin-top: 28px; }
@@ -161,33 +243,48 @@ select.inp { padding: 0 10px; }
 .inst strong { font-size: 32px; letter-spacing: -0.02em; }
 .inst input { width: 22px; height: 22px; accent-color: var(--ink); }
 .inst small { margin-top: auto; font-size: 12px; color: var(--muted); }
+
+/* connection */
+.conn-choices { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-end; }
+fieldset.choice { border: 0; padding: 0; margin: 0; }
+.choice legend { padding: 0 0 8px; }
 .safety { border: 2px solid var(--ink); background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
 .safety ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; }
 .dashed { margin-left: 12%; border: 2px dashed var(--line-strong); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.live-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .result { display: flex; align-items: center; gap: 10px; flex: 1 1 280px; min-height: 48px; padding: 0 16px; border: 2px solid var(--ink); border-left: 0; background: var(--surface); }
 .result.bad { font-weight: 700; }
-details summary { cursor: pointer; min-height: 32px; font-size: 13px; color: var(--muted); }
-details[open] summary { margin-bottom: 4px; }
+.result .current { margin-left: 6px; }
 
-.toast { position: fixed; right: 24px; bottom: 24px; max-width: 420px; padding: 14px 18px; background: var(--ink); color: var(--surface); border: 2px solid var(--ink); z-index: 20; }
-.toast.bad { background: var(--surface); color: var(--ink); font-weight: 700; }
+/* ==== 6. Setup ============================================================================= */
+ol.navrail { margin: 0; list-style: none; }
+.navrail .num-big { font-size: 28px; letter-spacing: -0.02em; font-weight: 400; }
+#view-setup .content { gap: 30px; }
 
-/* setup */
+.setup-step { display: flex; flex-direction: column; gap: 28px; }
+.setup-head { display: flex; flex-direction: column; gap: 12px; }
 .setup-title { margin: 0; font-size: clamp(40px, 4.4vw, 88px); line-height: 0.95; letter-spacing: -0.03em; }
 .setup-sub { margin: 0; padding-left: 14%; color: var(--muted); max-width: 620px; }
+.setup-body { display: flex; flex-direction: column; border-top: 2.5px solid var(--ink); padding-top: 24px; }
+.setup-body.split { flex-direction: row; flex-wrap: wrap; gap: 32px 48px; align-items: flex-start; }
+
+/* step by step */
+.setup-step[data-step="1"] { gap: 30px; }
+[data-step="2"] .setup-body { gap: 18px; }
+[data-step="3"] .setup-body { padding-top: 12px; }
+[data-step="4"] .setup-body { gap: 14px; }
+
 .steps-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; flex: 1 1 300px; }
 .steps-list li { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); line-height: 1.5; }
 .steps-list li:last-child { border-bottom: 0; }
 .shot { flex: 1 1 320px; margin-top: 40px; min-height: 220px; background: var(--line); border: 2px dashed var(--line-strong); display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+.practice-pos { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.03em; }
+.practice-last { margin: 0; }
+
 .setup-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); }
-.navrail .num-big { font-size: 28px; letter-spacing: -0.02em; font-weight: 400; }
+.setup-buttons { display: flex; }
 
-/* modal */
-.modal { position: fixed; inset: 0; background: rgba(27, 27, 27, 0.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 30; }
-.modal-box { width: min(560px, 100%); background: var(--surface); border: 2.5px solid var(--ink); padding: 32px; display: flex; flex-direction: column; gap: 18px; }
-.modal-box h2 { margin: 0; font-size: 30px; letter-spacing: -0.02em; }
-
-/* ---- mini mode ---------------------------------------------------------------------------- */
+/* ==== 7. Mini mode ========================================================================= */
 .mini { height: 100vh; display: flex; border: 2px solid var(--ink); background: var(--surface); font-size: 13px; }
 .mini-pos { flex: 0 0 38%; max-width: 170px; background: var(--ink); color: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; }
 .mini-pos .label { color: var(--on-ink-muted); }
@@ -201,22 +298,19 @@ details[open] summary { margin-bottom: 4px; }
 .mini-msg.pending { font-weight: 700; }
 .mini-actions { display: flex; align-items: stretch; margin-top: auto; }
 .mini-actions .btn { min-height: 40px; padding: 0 10px; }
+.mini-actions .grow { flex: 1; }
 .mini-actions .meterwrap { flex: 1 1 auto; border: 2px solid var(--ink); border-left: 0; display: flex; align-items: center; padding: 0 8px; }
 .mini-actions .meterwrap + .btn { border-left: 0; }
 .mini-actions .meter { flex: 1; height: 8px; border: 0; background: var(--line); }
+.mini-talk svg { vertical-align: -2px; }
 .mini-talk.on { background: var(--ink); color: var(--surface); }
-[data-hold].holding:not(.flatten) { background: var(--muted); border-color: var(--muted); }
 
-/* Trading screen fills the window: the rail never scrolls Flatten out of view, the field scrolls on its own. */
-#view-trading { height: 100vh; }
-#view-trading .body { min-height: 0; overflow: hidden; flex-wrap: nowrap; }
-#view-trading .rail { overflow-y: auto; }
-#view-trading .field { overflow-y: auto; }
-.rail .flatten { position: sticky; bottom: 0; flex: none; }
-.headline.mid { font-size: clamp(52px, 6.2vw, 170px); }
-@media (max-width: 939px) {
-  #view-trading { height: auto; }
-  #view-trading .body { flex-wrap: wrap; }
-  #view-trading .body, #view-trading .rail, #view-trading .field { overflow: visible; }
-  .rail { max-width: none; }
-}
+/* ==== 8. Overlays ========================================================================== */
+.modal { position: fixed; inset: 0; background: rgba(27, 27, 27, 0.55); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 30; }
+.modal-box { width: min(560px, 100%); background: var(--surface); border: 2.5px solid var(--ink); padding: 32px; display: flex; flex-direction: column; gap: 18px; }
+.modal-box h2 { margin: 0; font-size: 30px; letter-spacing: -0.02em; }
+.modal-box p { margin: 0; }
+.modal-box .badge { align-self: flex-start; }
+
+.toast { position: fixed; right: 24px; bottom: 24px; max-width: 420px; padding: 14px 18px; background: var(--ink); color: var(--surface); border: 2px solid var(--ink); z-index: 20; }
+.toast.bad { background: var(--surface); color: var(--ink); font-weight: 700; }

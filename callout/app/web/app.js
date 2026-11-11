@@ -1,15 +1,26 @@
 "use strict";
 /* Callout window. Polls the Python side for a snapshot and sends it commands.
    Every button that trades goes through the same path as your voice:
-   it sends "confirm", "cancel" or "flatten" to the engine. */
+   it sends "confirm", "cancel" or "flatten" to the engine.
 
+   Sections: helpers · boot · shared bits · trading screen · mini mode · live unlock ·
+   settings · setup · navigation · input (clicks, changes, keys, hold-to-talk, hold-to-flatten) */
+
+/* ---------------------------------------------------------------- helpers */
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-let api = null;
-let state = {};
+/* Elements tagged data-bind="name" are filled from the snapshot. */
+const bind = (name) => $$(`[data-bind="${name}"]`);
+function setText(name, text) { for (const el of bind(name)) if (el.textContent !== text) el.textContent = text; }
+function setHTML(name, html) { for (const el of bind(name)) if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
+function show(name, on) { for (const el of bind(name)) el.hidden = !on; }
+
+/* ---------------------------------------------------------------- page state */
+let api = null; // window.pywebview.api once the bridge is ready
+let state = {}; // latest snapshot from Python
 let settings = null;
 let feed = [];
 let feedVersion = -1;
@@ -21,11 +32,6 @@ let orderKey = "";
 let lastTest = "";
 let capturingKey = false;
 let toastTimer = null;
-
-const bind = (name) => $$(`[data-bind="${name}"]`);
-function setText(name, text) { for (const el of bind(name)) if (el.textContent !== text) el.textContent = text; }
-function setHTML(name, html) { for (const el of bind(name)) if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
-function show(name, on) { for (const el of bind(name)) el.hidden = !on; }
 
 /* ---------------------------------------------------------------- boot */
 function start(bridge) {
@@ -90,10 +96,8 @@ function display(text) {
   return t;
 }
 
-function posParts(position) {
-  const p = (position || "flat").toUpperCase().split(" ");
-  return p;
-}
+/* "long 2" -> ["LONG", "2"]: the position is shown one word per line. */
+const posParts = (position) => (position || "flat").toUpperCase().split(" ");
 
 /* ---------------------------------------------------------------- trading screen */
 function renderHeader() {
@@ -139,7 +143,7 @@ function renderRail() {
   banner.hidden = !n;
 
   const alert = bind("alert")[0];
-  const html = alerts.join('<span style="flex-basis:100%"></span>');
+  const html = alerts.join('<span class="break"></span>');
   if (alert.dataset.html !== html) { alert.innerHTML = html; alert.dataset.html = html; }
   alert.hidden = alerts.length === 0;
 }

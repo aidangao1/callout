@@ -21,7 +21,7 @@ class ContractRef:
     expiry: date | None
     raw: Any = field(default=None, repr=False)  # broker-native contract object
 
-    def same_contract(self, other: "ContractRef") -> bool:
+    def same_contract(self, other: ContractRef) -> bool:
         return self.local_symbol == other.local_symbol
 
 

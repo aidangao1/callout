@@ -117,7 +117,7 @@ Event types: `startup`, `heard` (with `rejected` reason if any), `awaiting_confi
 
 ## Config
 
-Settings live in `config.toml`. The app's Settings screen writes it; you can also edit it by hand while Callout is closed. `config.example.toml` has every option with comments. Ones you might change by hand:
+Settings live in `config.toml`. The app's Settings screen writes it; you can also edit it by hand while Callout is closed. `callout/config_template.toml` has every option with comments (`python -m callout init` copies it to `config.toml`). Ones you might change by hand:
 
 - `push_to_talk`: the talk key. Pick one your trading platform doesn't use, since the key press still reaches the focused app. Empty means on-screen button only.
 - `input_device`: which microphone. A number or part of a name from `python -m callout devices`; empty means the Windows default.
@@ -140,43 +140,57 @@ The app's Settings › Microphone and voice shows a live level meter and has a T
 
 `python -m callout app` (what `start.bat` runs; add `--sim` to use the simulator) opens a desktop window built with pywebview, which uses Edge WebView2 on Windows.
 
-- `callout/session.py` runs the engine, broker and voice on a background asyncio loop and keeps a snapshot of everything the screen shows, refreshed several times a second. On-screen buttons send the same `confirm`, `cancel` and `flatten` commands as your voice, so they go through the same risk checks.
-- `callout/gui.py` creates the window and exposes a small API to the page (`window.pywebview.api`).
-- `callout/web/` is the page: `index.html`, `app.css`, `app.js`, and **`theme.css`, where every color and the font are defined.** Change the look there. Geist Mono is bundled (SIL Open Font License, `web/fonts/GeistMono-OFL.txt`). The page loads nothing from the internet.
-- Settings changed in the app are written back to `config.toml` (`callout/settings_io.py`).
+- `callout/app/session.py` runs the engine, broker and voice on a background asyncio loop and keeps a snapshot of everything the screen shows, refreshed several times a second. On-screen buttons send the same `confirm`, `cancel` and `flatten` commands as your voice, so they go through the same risk checks.
+- `callout/app/window.py` creates the window and exposes a small API to the page (`window.pywebview.api`). Page calls arrive on background threads, so anything that changes the window itself (mini mode) is handed to the window's own thread.
+- `callout/app/web/` is the page: `index.html`, `app.css`, `app.js`, and **`theme.css`, where every color and the font are defined.** Change the look there. `app.css` is split into numbered sections (base, controls, frame, trading, settings, setup, mini mode, overlays), and the page uses no inline styles. Geist Mono is bundled (SIL Open Font License, `app/web/fonts/GeistMono-OFL.txt`). The page loads nothing from the internet.
+- `callout/app/settings.py` decides what the Settings screen shows and applies its changes; `config.save_config` writes them back to `config.toml`.
 - Live trading has to be unlocked by typing LIVE each time the app starts, or when switching to live in Settings.
 
 ## Project layout
 
 ```
 callout/
-  cli.py            commands: app, init, check, devices, mic-scan, mic-test, tts-test, run
-  gui.py            the desktop window
-  session.py        runs everything behind the window
-  settings_io.py    saves settings back to config.toml
-  web/              the window's page (theme.css = colors and font)
-  engine.py         intent -> risk -> confirm -> order -> readback
-  intents.py        phrase grammar, decoys and strict parser
-  risk.py           limits, cooldown, rate limit, market hours and clock
-  contracts.py      expiries, front month, roll
-  stt.py            Vosk speech-to-text, grammar-locked
-  audio.py          mic capture, level meter, push-to-talk
-  tts.py            spoken readback
-  journal.py        JSONL log
+  cli.py                 python -m callout <command>: parses arguments and hands off
+  config.py              config.toml: load, validate, save; the standard ports
+  config_template.toml   starter config with every option explained
+  trading/               the trading logic; knows nothing about voice or the window
+    engine.py            intent -> risk -> confirm -> order -> readback
+    risk.py              position limit, cooldown, orders per minute
+    market_hours.py      CME Globex hours and the Eastern-time clock
+    contracts.py         expiries, front month, roll
+    journal.py           JSONL log
+  voice/
+    intents.py           phrase grammar, decoys and the strict parser
+    recognizer.py        Vosk speech-to-text, grammar-locked
+    microphone.py        finding mics, level meter, recording
+    push_to_talk.py      the talk key and the on-screen Talk button
+    speaker.py           spoken readback
   brokers/
-    base.py         Broker interface
-    ibkr.py         Interactive Brokers (ib_async)
-    sim.py          simulated fills
-tests/              python -m pytest
-*.bat               Windows double-click launchers (install, start, start-console, mic-test, check-connection)
+    base.py              the Broker interface the engine talks to
+    ibkr.py              Interactive Brokers (ib_async)
+    ibkr_messages.py     IBKR errors in plain words
+    sim.py               simulated fills
+  app/                   the desktop app
+    window.py            the window and the page's Python API
+    session.py           runs everything behind the window
+    settings.py          the Settings screen <-> config
+    activity.py          log records -> Activity rows
+    web/                 the page (theme.css = colors and font)
+  console/               the same features without the window
+    trade.py             python -m callout run
+    tools.py             init, check, devices, mic-scan, mic-test, tts-test
+    common.py            helpers they share
+tests/                   test_<module>.py per area; helpers.py has the shared fakes
+troubleshooting/         console launchers: start-console, mic-test, check-connection
+install.bat, start.bat   the two launchers most people need
 ```
 
-Run the tests with `pip install -e .[dev]` then `python -m pytest`.
+Run the tests with `pip install -e .[dev]` then `python -m pytest`. Lint and format with `ruff check .` and `ruff format .` (settings are in `pyproject.toml`).
 
 ## Extending
 
 - **Another broker:** subclass `brokers.base.Broker` (connect, front_month, position, positions, market_order, cancel_open_orders, open_orders; optionally avg_price and working_count for the screen) and add it to `brokers/__init__.py`. The engine and the app don't change.
-- **More commands** (e.g. "buy 2 E S", limit orders, stocks by dollar amount): add phrases in `intents.py`. For free-form speech, a larger speech model or an LLM can replace the parser, as long as it outputs the same `Intent` objects and goes through the same risk and confirm path.
+- **More commands** (e.g. "buy 2 E S", limit orders, stocks by dollar amount): add phrases in `voice/intents.py`. For free-form speech, a larger speech model or an LLM can replace the parser, as long as it outputs the same `Intent` objects and goes through the same risk and confirm path.
 
 ## Known limitations
 

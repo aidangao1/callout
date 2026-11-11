@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 import threading
-from typing import Callable
+from collections.abc import Callable
 
 # SAPI SpVoice.Speak flags
 SVSF_PURGE_BEFORE_SPEAK = 2

@@ -19,20 +19,20 @@ import threading
 import time
 import uuid
 from collections import deque
-from dataclasses import fields
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from .brokers import BrokerError, make_broker
-from .config import DEFAULT_INSTRUMENTS, BrokerConfig, Config, ConfigError, Instrument, SafetyConfig, VoiceConfig, validate
-from .contracts import describe_position
-from .engine import Engine, Meta
-from .intents import normalize
-from .journal import Journal
-from .risk import ET, RiskManager, market_status_text
-from .settings_io import app_for_port, default_port, save_config
-from .tts import Speaker
+from ..brokers import BrokerError, make_broker
+from ..config import Config, ConfigError, default_port, save_config
+from ..trading.contracts import describe_position
+from ..trading.engine import Engine, Meta
+from ..trading.journal import Journal
+from ..trading.market_hours import ET, market_status_text
+from ..trading.risk import RiskManager
+from ..voice.speaker import Speaker
+from .activity import feed_row, pretty_intent
+from .settings import apply_patch, settings_view
 
 SNAPSHOT_EVERY_S = 0.15
 FEED_ROWS = 120
@@ -69,112 +69,27 @@ class UISpeaker(Speaker):
         super().say(text, interrupt)
 
 
-def _pretty_intent(intent: str | None) -> str:
-    if not intent:
-        return ""
-    parts = intent.split()
-    return " ".join([parts[0].capitalize()] + parts[1:])
-
-
-def _fmt_ms(ms: float | None) -> str:
-    if ms is None:
-        return ""
-    return f"{ms / 1000:.1f} s" if ms >= 1000 else f"{ms:.0f} ms"
-
-
-def feed_row(rec: dict) -> dict | None:
-    """Turn one log record into an Activity row, or None for records the screen skips."""
-    ev = rec.get("event")
-    ts = (rec.get("ts") or "")[11:19]
-    row = {"time": ts, "kind": "", "text": "", "meta": "", "cat": "orders", "strong": False}
-    if ev == "heard":
-        row["cat"] = "voice"
-        text = rec.get("text", "")
-        if rec.get("source") == "ui":
-            row.update(kind="Button", text=_pretty_intent(rec.get("intent")) or text)
-        elif rec.get("rejected"):
-            row.update(kind="Rejected", text=(f'"{text}" · ' if text else "") + f"{rec['rejected']}, nothing sent")
-        elif not rec.get("intent"):
-            row.update(kind="Rejected", text=f'"{text}" · not a command, nothing sent')
-        else:
-            row.update(kind="Heard", text=f'"{text}" → {_pretty_intent(rec.get("intent"))}', meta=_fmt_ms(rec.get("stt_ms")))
-    elif ev == "awaiting_confirm":
-        extra = ""
-        if "position" in rec:
-            extra = f" · {describe_position(rec['position'])} → {describe_position(rec['resulting'])}"
-        row.update(kind="Read back", text=_pretty_intent(rec.get("intent")) + extra)
-    elif ev == "confirmed":
-        row.update(kind="Confirmed", text=_pretty_intent(rec.get("intent")))
-    elif ev == "cancelled":
-        why = {"user": "you cancelled", "timeout": "not confirmed in time", "new_command": "replaced by a new command",
-               "unclear_input": "unclear speech"}.get(rec.get("by"), rec.get("by", ""))
-        row.update(kind="Cancelled", text=f"{_pretty_intent(rec.get('intent'))} · {why}")
-    elif ev == "blocked":
-        row.update(kind="Blocked", text=str(rec.get("reason", "")))
-    elif ev == "order_result":
-        status = rec.get("status", "")
-        if status == "Filled":
-            verb = "Bought" if rec.get("action") == "BUY" else "Sold"
-            price = rec.get("avg_price")
-            row.update(kind="Filled", strong=True,
-                       text=f"{verb} {rec.get('filled')} {rec.get('contract')}" + (f" at {price:.2f}" if price else ""))
-        else:
-            row.update(kind=status or "Order", strong=True, text=rec.get("message") or f"{rec.get('action')} {rec.get('quantity')} {rec.get('contract')}")
-        row["meta"] = _fmt_ms(rec.get("release_to_done_ms", rec.get("send_to_done_ms")))
-    elif ev == "position_mismatch":
-        row.update(kind="Warning", strong=True,
-                   text=f"Broker shows {describe_position(rec.get('broker', 0))}, expected {describe_position(rec.get('expected', 0))}")
-    elif ev == "orders_cancelled":
-        n = int(rec.get("requested") or 0)
-        if not n:
-            return None  # leftover orders get their own Warning row from flatten_result
-        row.update(kind="Orders", text=f"Cancelled {n} working order{'s' if n > 1 else ''}")
-    elif ev == "flatten_result":
-        n = int(rec.get("still_working") or 0)
-        if not n:
-            return None
-        row.update(kind="Warning", strong=True, text=f"{n} order{'s' if n > 1 else ''} still working in TWS. Cancel in TWS.")
-    elif ev == "flatten_incomplete":
-        row.update(kind="Warning", strong=True, text="Flatten incomplete. Check TWS.")
-    elif ev == "startup":
-        row.update(kind="Connected", cat="system", text=f"{rec.get('account')} · {rec.get('broker')} · {rec.get('mode')}")
-    elif ev == "disconnected":
-        row.update(kind="Connection", cat="system", strong=True, text="Lost connection to the broker")
-    elif ev == "contract_roll":
-        row.update(kind="Roll", cat="system", text=f"{rec.get('old')} → {rec.get('new')}")
-    elif ev == "contract_roll_deferred":
-        row.update(kind="Roll", cat="system", text=f"Waiting until you're flat in {rec.get('old')}")
-    elif ev == "broker_error":
-        row.update(kind="Broker", cat="system", text=f"[{rec.get('code')}] {rec.get('message')}")
-    elif ev in ("error", "connect_failed"):
-        row.update(kind="Error", cat="system", strong=True, text=str(rec.get("error", "")))
-    else:
-        return None
-    return row
-
-
 # What each kind of record means for the big order area on screen.
-_LAST_KIND = {"awaiting_confirm": "pending", "blocked": "blocked", "flatten_incomplete": "blocked",
-              "error": "blocked", "position_mismatch": "blocked"}
-
-_LIGHT_SAFETY = {"require_confirmation": bool, "confirm_flatten": bool, "flatten_cancels_all_orders": bool,
-                 "max_position": int, "min_seconds_between_orders": float, "max_orders_per_minute": int,
-                 "check_market_hours": bool, "confirm_timeout_s": float}
-_CONNECTION_KEYS = {"app", "mode", "port", "host", "live_confirm"}
-
-
-def _restore(cfg: Config, before: Config) -> None:
-    """Put cfg back exactly as it was, in place (the engine holds this same object)."""
-    for name, cls in (("broker", BrokerConfig), ("voice", VoiceConfig), ("safety", SafetyConfig)):
-        for f in fields(cls):
-            setattr(getattr(cfg, name), f.name, copy.deepcopy(getattr(getattr(before, name), f.name)))
-    cfg.instruments.clear()
-    cfg.instruments.update(copy.deepcopy(before.instruments))
+_LAST_KIND = {
+    "awaiting_confirm": "pending",
+    "blocked": "blocked",
+    "flatten_incomplete": "blocked",
+    "error": "blocked",
+    "position_mismatch": "blocked",
+}
 
 
 class Session:
-    def __init__(self, cfg: Config, config_path: str | Path, *, use_sim: bool = False, audio: bool = True,
-                 tts: bool = True, first_run: bool = False):
+    def __init__(
+        self,
+        cfg: Config,
+        config_path: str | Path,
+        *,
+        use_sim: bool = False,
+        audio: bool = True,
+        tts: bool = True,
+        first_run: bool = False,
+    ):
         self.cfg = cfg
         self.config_path = Path(config_path)
         self.use_sim = use_sim
@@ -234,13 +149,20 @@ class Session:
         cfg = self.cfg
         self._queue = asyncio.Queue()
         self.journal = UIJournal(cfg.log_dir, uuid.uuid4().hex[:8], self._on_record)
-        self.speaker = UISpeaker(self._on_say, enabled=cfg.voice.tts and self.tts_allowed, echo=lambda s: None,
-                                 rate=cfg.voice.voice_rate, volume=cfg.voice.voice_volume)
+        self.speaker = UISpeaker(
+            self._on_say,
+            enabled=cfg.voice.tts and self.tts_allowed,
+            echo=lambda s: None,
+            rate=cfg.voice.voice_rate,
+            volume=cfg.voice.voice_volume,
+        )
         self.risk = RiskManager(cfg)
         self.broker = self._make_broker()
         self.engine = Engine(cfg, self.broker, self.speaker, self.journal, self.risk)
-        self._tasks = [asyncio.create_task(c) for c in
-                       (self._snapshot_loop(), self._consume(), self._watchdog(), self._orders_loop())]
+        self._tasks = [
+            asyncio.create_task(c)
+            for c in (self._snapshot_loop(), self._consume(), self._watchdog(), self._orders_loop())
+        ]
         self._booted.set()
         if self.live_unlocked:
             await self._connect()
@@ -268,7 +190,9 @@ class Session:
     # ---- broker -------------------------------------------------------------------------------
 
     def _make_broker(self):
-        return make_broker(self.cfg, use_sim=self.use_sim, allow_live=self.live_unlocked, on_event=self._on_broker_event)
+        return make_broker(
+            self.cfg, use_sim=self.use_sim, allow_live=self.live_unlocked, on_event=self._on_broker_event
+        )
 
     def _on_broker_event(self, kind: str, data: dict) -> None:
         self.journal.log(kind, **data)
@@ -322,7 +246,7 @@ class Session:
     # ---- voice --------------------------------------------------------------------------------
 
     async def _start_voice(self) -> None:
-        from .stt import Transcriber
+        from ..voice.recognizer import Transcriber
 
         self.status.update(voice="loading", voice_error="")
         loop = asyncio.get_running_loop()
@@ -330,14 +254,16 @@ class Session:
             if self.transcriber is None:
                 cfg = self.cfg
                 self.transcriber = await loop.run_in_executor(
-                    None, lambda: Transcriber(cfg.voice.model, self.engine.parser.grammar, cfg.voice.sample_rate))
+                    None, lambda: Transcriber(cfg.voice.model, self.engine.parser.grammar, cfg.voice.sample_rate)
+                )
             await loop.run_in_executor(None, self._start_talker_sync)
             self.status["voice"] = "ready"
         except Exception as e:
             self.status.update(voice="error", voice_error=str(e))
 
     def _start_talker_sync(self) -> None:
-        from .audio import PushToTalk, Recorder, resolve_input_device
+        from ..voice.microphone import Recorder, resolve_input_device
+        from ..voice.push_to_talk import PushToTalk
 
         if self.talker:
             try:
@@ -370,7 +296,7 @@ class Session:
             self.loop.call_soon_threadsafe(self._queue.put_nowait, ("reject", None, None))
 
     async def _consume(self) -> None:
-        from .audio import audio_level
+        from ..voice.microphone import audio_level
 
         loop = asyncio.get_running_loop()
         while True:
@@ -383,13 +309,21 @@ class Session:
                 rate = self.talker.recorder.sample_rate if self.talker else self.cfg.voice.sample_rate
                 tr = await loop.run_in_executor(None, self.transcriber.transcribe, payload, rate)
                 t_heard = time.monotonic()
-                self.heard = {"text": tr.text, "confidence": round(tr.confidence, 2),
-                              "ms": round((t_heard - t_release) * 1000), "level": round(audio_level(payload), 2)}
+                self.heard = {
+                    "text": tr.text,
+                    "confidence": round(tr.confidence, 2),
+                    "ms": round((t_heard - t_release) * 1000),
+                    "level": round(audio_level(payload), 2),
+                }
                 if self.test_mode:
                     self.test_mode = False
                     intent = None if tr.has_unknown else self.engine.parser.parse(tr.text)
                     ok = intent is not None and tr.confidence >= self.cfg.voice.min_confidence
-                    self.test_result = {**self.heard, "ok": ok, "intent": _pretty_intent(intent.describe()) if ok else None}
+                    self.test_result = {
+                        **self.heard,
+                        "ok": ok,
+                        "intent": pretty_intent(intent.describe()) if ok else None,
+                    }
                     continue
                 await self.engine.handle_transcript(tr, Meta(source="voice", t_release=t_release, t_heard=t_heard))
             except Exception as e:  # keep listening no matter what; flatten must stay available
@@ -477,15 +411,25 @@ class Session:
             if front and front.expiry:
                 d = front.expiry - timedelta(days=cfg.safety.roll_days_before_expiry)
                 roll = f"{d:%b} {d.day}"
-            instruments.append({
-                "symbol": sym, "label": inst.label, "name": inst.say_as or sym,
-                "contract": front.local_symbol if front else None, "roll": roll,
-                "qty": qty, "position": describe_position(qty),
-                "avg": b.avg_price(front) if (connected and front and qty) else None,
-                "quantity": inst.quantity, "max": cfg.max_position_for(sym),
-            })
-        older = [{"contract": c.local_symbol, "position": describe_position(q)}
-                 for c, q in held if not any(c.same_contract(f) for f in fronts)]
+            instruments.append(
+                {
+                    "symbol": sym,
+                    "label": inst.label,
+                    "name": inst.say_as or sym,
+                    "contract": front.local_symbol if front else None,
+                    "roll": roll,
+                    "qty": qty,
+                    "position": describe_position(qty),
+                    "avg": b.avg_price(front) if (connected and front and qty) else None,
+                    "quantity": inst.quantity,
+                    "max": cfg.max_position_for(sym),
+                }
+            )
+        older = [
+            {"contract": c.local_symbol, "position": describe_position(q)}
+            for c, q in held
+            if not any(c.same_contract(f) for f in fronts)
+        ]
         account = eng.account if connected else ""
         if b is not None and b.name == "sim":
             badge = "SIM"
@@ -508,8 +452,11 @@ class Session:
             "market_text": market_text,
             "instruments": instruments,
             "older": older,
-            "working": (self._working_fresh if self._working_fresh is not None
-                        else b.working_count(set(cfg.instruments))) if connected else None,
+            "working": (
+                self._working_fresh if self._working_fresh is not None else b.working_count(set(cfg.instruments))
+            )
+            if connected
+            else None,
             "leftover": self.leftover if connected and not held else 0,
             "pending": eng.pending_summary(),
             "last": self.last,
@@ -573,34 +520,11 @@ class Session:
         self.first_run = False
 
     def settings(self) -> dict:
-        c = self.cfg
-        return {
-            "es_enabled": c.instruments.get("ES", Instrument("ES", enabled=False)).enabled,
-            "mes_enabled": c.instruments.get("MES", Instrument("MES", enabled=False)).enabled,
-            "quantity": next((i.quantity for i in c.enabled_instruments.values()), 1),
-            "max_position": c.safety.max_position,
-            "check_market_hours": c.safety.check_market_hours,
-            "min_seconds_between_orders": c.safety.min_seconds_between_orders,
-            "max_orders_per_minute": c.safety.max_orders_per_minute,
-            "require_confirmation": c.safety.require_confirmation,
-            "confirm_flatten": c.safety.confirm_flatten,
-            "flatten_cancels_all_orders": c.safety.flatten_cancels_all_orders,
-            "app": app_for_port(c.broker.port),
-            "mode": c.broker.trading_mode,
-            "port": c.broker.port,
-            "host": c.broker.host,
-            "input_device": c.voice.input_device,
-            "push_to_talk": c.voice.push_to_talk,
-            "tts": c.voice.tts,
-            "voice_rate": c.voice.voice_rate,
-            "voice_volume": c.voice.voice_volume,
-            "decoys": list(c.voice.decoys),
-            "sim": self.use_sim,
-        }
+        return settings_view(self.cfg, self.use_sim)
 
     def mics(self) -> list[dict]:
         try:
-            from .audio import main_input_devices
+            from ..voice.microphone import main_input_devices
 
             return [{"index": d["index"], "name": d["name"], "default": d["default"]} for d in main_input_devices()]
         except Exception:
@@ -618,70 +542,12 @@ class Session:
 
     async def _apply(self, patch: dict) -> dict:
         cfg = self.cfg
-        before = copy.deepcopy(cfg)
-        needs: set[str] = set()
         try:
-            for k, v in patch.items():
-                if k in _CONNECTION_KEYS:
-                    continue
-                if k in _LIGHT_SAFETY:
-                    setattr(cfg.safety, k, _LIGHT_SAFETY[k](v))
-                elif k == "quantity":
-                    for inst in cfg.instruments.values():
-                        inst.quantity = int(v)
-                elif k == "tts":
-                    cfg.voice.tts = bool(v)
-                elif k == "voice_rate":
-                    cfg.voice.voice_rate = max(-10, min(10, int(v)))
-                elif k == "voice_volume":
-                    cfg.voice.voice_volume = max(0, min(100, int(v)))
-                elif k == "min_confidence":
-                    cfg.voice.min_confidence = float(v)
-                elif k == "input_device":
-                    cfg.voice.input_device = str(v)
-                    needs.add("talker")
-                elif k == "push_to_talk":
-                    cfg.voice.push_to_talk = str(v).strip().lower()
-                    needs.add("talker")
-                elif k == "decoys":
-                    cfg.voice.decoys = sorted({normalize(d) for d in v if normalize(d)})
-                    needs.add("grammar")
-                elif k in ("es_enabled", "mes_enabled"):
-                    sym = "ES" if k == "es_enabled" else "MES"
-                    if sym not in cfg.instruments:
-                        cfg.instruments[sym] = copy.deepcopy(DEFAULT_INSTRUMENTS[sym])
-                    cfg.instruments[sym].enabled = bool(v)
-                    needs.add("grammar")
-                else:
-                    raise ConfigError(f"Unknown setting: {k}")
-
-            if _CONNECTION_KEYS & set(patch):
-                app = patch.get("app") or app_for_port(cfg.broker.port)
-                mode = patch.get("mode") or cfg.broker.trading_mode
-                if mode not in ("paper", "live") or app not in ("tws", "gateway"):
-                    raise ConfigError("Unknown connection type.")
-                if mode == "live" and not (cfg.broker.trading_mode == "live" and self.live_unlocked):
-                    if (patch.get("live_confirm") or "").strip() != "LIVE":
-                        raise ConfigError("Type LIVE to switch to real-money trading.")
-                changed_type = mode != cfg.broker.trading_mode or app != app_for_port(cfg.broker.port)
-                port = int(patch["port"]) if patch.get("port") not in (None, "") and not changed_type else default_port(app, mode)
-                if (cfg.broker.trading_mode, cfg.broker.port, cfg.broker.host) != (mode, port, patch.get("host") or cfg.broker.host):
-                    needs.add("connection")
-                cfg.broker.trading_mode = mode
-                cfg.broker.port = port
-                cfg.broker.host = patch.get("host") or cfg.broker.host
-                if mode == "live":
-                    self.live_unlocked = True
-                elif not self.live_unlocked:
-                    self.live_unlocked = True  # paper never needs unlocking
-            validate(cfg)
-            if "grammar" in needs:
-                from .intents import IntentParser
-
-                IntentParser(cfg)  # raises if two phrases collide; checked before anything changes
-        except (ConfigError, ValueError, TypeError) as e:
-            _restore(cfg, before)
+            applied = apply_patch(cfg, patch, self.live_unlocked)
+        except ConfigError as e:
             return {"ok": False, "error": str(e)}
+        self.live_unlocked = applied.live_unlocked
+        needs = applied.needs
 
         if self.speaker:
             self.speaker.set_enabled(cfg.voice.tts and self.tts_allowed)
@@ -711,8 +577,12 @@ class Session:
         b0 = self.cfg.broker
         if self.broker and self.broker.connected and (b0.trading_mode, b0.port, b0.host) == (mode, port, host):
             first = next(iter(self.engine.contracts.values()), None)
-            return {"ok": True, "account": self.engine.account, "badge": self._snapshot.get("badge", mode.upper()),
-                    "contract": first.local_symbol if first else None}
+            return {
+                "ok": True,
+                "account": self.engine.account,
+                "badge": self._snapshot.get("badge", mode.upper()),
+                "contract": first.local_symbol if first else None,
+            }
         tmp = copy.deepcopy(self.cfg)
         tmp.broker.trading_mode, tmp.broker.port, tmp.broker.host = mode, port, host
         tmp.broker.client_id = self.cfg.broker.client_id + 50  # don't collide with the live session

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime
-from typing import Awaitable, Callable, TypeVar
+from typing import TypeVar
 
 from ib_async import IB, Contract, Future, MarketOrder
 
 from ..config import BrokerConfig, Instrument
-from ..contracts import choose_front_month
-from ..risk import ET
+from ..trading.contracts import choose_front_month
+from ..trading.market_hours import ET
 from .base import Broker, BrokerError, ContractRef, OrderResult
 from .ibkr_messages import plain_from_raw, plain_reason
 
@@ -33,7 +34,9 @@ def _parse_expiry(s: str) -> date | None:
 class IBKRBroker(Broker):
     name = "ibkr"
 
-    def __init__(self, cfg: BrokerConfig, allow_live: bool = False, on_event: Callable[[str, dict], None] | None = None):
+    def __init__(
+        self, cfg: BrokerConfig, allow_live: bool = False, on_event: Callable[[str, dict], None] | None = None
+    ):
         self.cfg = cfg
         self.allow_live = allow_live
         self.ib = IB()
@@ -50,8 +53,10 @@ class IBKRBroker(Broker):
         self._synced = False
         try:
             # connectAsync returns only after positions, open orders and executions are loaded.
-            await self.ib.connectAsync(c.host, c.port, clientId=c.client_id, timeout=REQUEST_TIMEOUT_S, account=c.account)
-        except (ConnectionRefusedError, OSError, asyncio.TimeoutError, ConnectionError) as e:
+            await self.ib.connectAsync(
+                c.host, c.port, clientId=c.client_id, timeout=REQUEST_TIMEOUT_S, account=c.account
+            )
+        except (TimeoutError, ConnectionRefusedError, OSError, ConnectionError) as e:
             self.ib.disconnect()
             raise BrokerError(
                 f"Couldn't reach TWS/IB Gateway at {c.host}:{c.port} ({e.__class__.__name__}). "
@@ -103,14 +108,15 @@ class IBKRBroker(Broker):
         req_id, code, msg = (list(args) + [None, None, None])[:3]
         if code in INFO_CODES:
             return
-        self._on_event("broker_error", {"req_id": req_id, "code": code, "message": plain_reason(code, msg or ""),
-                                        "raw": msg})
+        self._on_event(
+            "broker_error", {"req_id": req_id, "code": code, "message": plain_reason(code, msg or ""), "raw": msg}
+        )
 
     async def _call(self, what: str, aw: Awaitable[T]) -> T:
         """Every request to TWS gets a timeout, and library errors become BrokerError."""
         try:
             return await asyncio.wait_for(aw, REQUEST_TIMEOUT_S)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise BrokerError(f"IBKR didn't answer the {what} request within {REQUEST_TIMEOUT_S:g}s.") from e
         except BrokerError:
             raise
@@ -207,8 +213,15 @@ class IBKRBroker(Broker):
 
         oid = str(trade.order.orderId)
         if not self.ib.isConnected() and not trade.isDone():
-            return OrderResult(oid, action, quantity, "Unknown", int(trade.orderStatus.filled or 0), None,
-                               "Lost connection while the order was working. Its state is unknown.")
+            return OrderResult(
+                oid,
+                action,
+                quantity,
+                "Unknown",
+                int(trade.orderStatus.filled or 0),
+                None,
+                "Lost connection while the order was working. Its state is unknown.",
+            )
 
         timed_out = not trade.isDone()
         if timed_out:
@@ -243,7 +256,8 @@ class IBKRBroker(Broker):
 
     def _working(self, symbols: set[str]):
         return [
-            t for t in self.ib.openTrades()
+            t
+            for t in self.ib.openTrades()
             if t.contract.secType == "FUT" and t.contract.symbol in symbols and not t.isDone()
         ]
 

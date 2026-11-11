@@ -8,23 +8,36 @@ import re
 _RAW = re.compile(r"^(?:Error|Warning)\s+(-?\d+),\s*reqId\s+-?\d+:\s*(.*?)(?:,\s*contract:.*)?$", re.S)
 
 _RULES: list[tuple[tuple[str, ...], str]] = [
-    (("equity with loan", "initial margin", "maintenance margin", "buying power", "insufficient", "margin"),
-     "Not enough buying power for this order."),
-    (("trading permission", "no permission", "not have permission", "permissions"),
-     "This account doesn't have permission to trade this contract."),
-    (("read-only", "read only"),
-     "TWS is set to read-only. Untick Read-Only API in TWS's API settings."),
-    (("size limit", "value limit", "precaution", "exceeds the", "percentage constraint"),
-     "TWS's precaution limits stopped this order. Check Presets in TWS."),
-    (("exchange is closed", "market is closed", "outside of trading hours", "outside regular trading hours",
-      "not open for trading", "trading hours"),
-     "The exchange is closed for this contract."),
-    (("market data", "not subscribed"),
-     "This account has no market data for this contract. Check market data in IBKR's Client Portal."),
-    (("no security definition",),
-     "IBKR doesn't recognize this contract."),
-    (("duplicate order id",),
-     "IBKR rejected a duplicate order ID. Restart Callout and try again."),
+    (
+        ("equity with loan", "initial margin", "maintenance margin", "buying power", "insufficient", "margin"),
+        "Not enough buying power for this order.",
+    ),
+    (
+        ("trading permission", "no permission", "not have permission", "permissions"),
+        "This account doesn't have permission to trade this contract.",
+    ),
+    (("read-only", "read only"), "TWS is set to read-only. Untick Read-Only API in TWS's API settings."),
+    (
+        ("size limit", "value limit", "precaution", "exceeds the", "percentage constraint"),
+        "TWS's precaution limits stopped this order. Check Presets in TWS.",
+    ),
+    (
+        (
+            "exchange is closed",
+            "market is closed",
+            "outside of trading hours",
+            "outside regular trading hours",
+            "not open for trading",
+            "trading hours",
+        ),
+        "The exchange is closed for this contract.",
+    ),
+    (
+        ("market data", "not subscribed"),
+        "This account has no market data for this contract. Check market data in IBKR's Client Portal.",
+    ),
+    (("no security definition",), "IBKR doesn't recognize this contract."),
+    (("duplicate order id",), "IBKR rejected a duplicate order ID. Restart Callout and try again."),
 ]
 
 _CODES = {

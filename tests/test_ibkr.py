@@ -11,7 +11,7 @@ pytest.importorskip("ib_async")
 
 from ib_async import Contract  # noqa: E402
 
-from callout.brokers.base import BrokerError  # noqa: E402
+from callout.brokers.base import BrokerError, ContractRef  # noqa: E402
 from callout.brokers.ibkr import IBKRBroker  # noqa: E402
 from callout.config import BrokerConfig, Instrument  # noqa: E402
 
@@ -38,8 +38,15 @@ class FakeTrade:
 
 
 def fut(symbol, month, con_id, exchange="CME"):
-    c = Contract(secType="FUT", symbol=symbol, lastTradeDateOrContractMonth=month, conId=con_id,
-                 exchange=exchange, tradingClass=symbol, currency="USD")
+    c = Contract(
+        secType="FUT",
+        symbol=symbol,
+        lastTradeDateOrContractMonth=month,
+        conId=con_id,
+        exchange=exchange,
+        tradingClass=symbol,
+        currency="USD",
+    )
     c.localSymbol = {"20261218": f"{symbol}Z6", "20270319": f"{symbol}H7", "20260918": f"{symbol}U6"}[month]
     return c
 
@@ -71,8 +78,7 @@ class FakeIB:
         return self._accounts
 
     async def reqContractDetailsAsync(self, query):
-        return [SimpleNamespace(contract=fut(query.symbol, m, i)) for i, m in
-                ((1, "20261218"), (2, "20270319"))]
+        return [SimpleNamespace(contract=fut(query.symbol, m, i)) for i, m in ((1, "20261218"), (2, "20270319"))]
 
     async def qualifyContractsAsync(self, c):
         return [fut("ES", "20260918", c.conId)]
@@ -82,8 +88,11 @@ class FakeIB:
 
     def placeOrder(self, contract, order):
         self.placed.append((contract, order))
-        status = SimpleNamespace(status="Filled" if self.fill else "Submitted", filled=order.totalQuantity if self.fill else 0,
-                                 avgFillPrice=6001.25 if self.fill else 0.0)
+        status = SimpleNamespace(
+            status="Filled" if self.fill else "Submitted",
+            filled=order.totalQuantity if self.fill else 0,
+            avgFillPrice=6001.25 if self.fill else 0.0,
+        )
         order.orderId = len(self.placed)
         t = FakeTrade(order, contract, status, done=self.fill)
         self.trades.append(t)
@@ -141,6 +150,7 @@ def test_front_month_and_order_fill(monkeypatch):
         @staticmethod
         def now(tz=None):
             from datetime import datetime
+
             return datetime(2026, 11, 9, 10, tzinfo=tz)
 
         strptime = staticmethod(__import__("datetime").datetime.strptime)
@@ -161,8 +171,6 @@ def test_unfilled_order_times_out_and_is_cancelled():
     b = broker(fill=False, timeout=0.05)
     run(b.connect())
     k = fut("ES", "20261218", 1)
-    from callout.brokers.base import ContractRef
-
     r = run(b.market_order(ContractRef("ES", "ESZ6", date(2026, 12, 18), raw=k), "SELL", 1))
     assert r.status == "Timeout" and not r.fully_filled
     assert len(b.ib.cancelled) == 1
@@ -175,8 +183,6 @@ def test_unconfirmed_cancel_reports_unknown(monkeypatch):
     b = broker(fill=False, timeout=0.05)
     b.ib.cancel_confirms = False
     run(b.connect())
-    from callout.brokers.base import ContractRef
-
     r = run(b.market_order(ContractRef("ES", "ESZ6", date(2026, 12, 18), raw=fut("ES", "20261218", 1)), "BUY", 1))
     assert r.status == "Unknown" and "may still be working" in r.message
 
@@ -200,8 +206,6 @@ def test_place_order_failure_becomes_broker_error():
         raise ConnectionError("Not connected")
 
     b.ib.placeOrder = boom
-    from callout.brokers.base import ContractRef
-
     with pytest.raises(BrokerError, match="Order not sent"):
         run(b.market_order(ContractRef("ES", "ESZ6", None, raw=fut("ES", "20261218", 1)), "BUY", 1))
 

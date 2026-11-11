@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<svg class="sprite" width="0" height="0" aria-hidden="true">
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter"/><path d="M12 10v4M12 17.5v.01" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"/></symbol>
@@ -36,7 +36,7 @@
 
   <div class="body">
     <aside class="rail on-ink" aria-label="Position and flatten">
-      <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="pos-block">
         <p class="label">Position</p>
         <p class="pos-big" data-bind="pos-big"><span>—</span></p>
         <p class="pos-sub" data-bind="pos-sub"></p>
@@ -64,7 +64,7 @@
       <div class="alert" data-bind="alert" hidden></div>
 
       <div class="heard-row">
-        <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="heard-block">
           <p class="label">Heard</p>
           <p class="heard-text" data-bind="heard-text">—</p>
         </div>
@@ -79,24 +79,24 @@
         <section class="order" aria-live="polite" data-bind="order"></section>
         <button type="button" class="talk" data-talk aria-label="Hold to talk">
           <svg width="44" height="44" aria-hidden="true"><use href="#i-mic"/></svg>
-          <span style="display:flex;flex-direction:column;gap:8px;width:100%">
+          <span class="talk-inner">
             <span class="t" data-bind="talk-title">HOLD<br>TO TALK</span>
             <span class="s" data-bind="talk-sub"></span>
-            <span class="meter" aria-hidden="true" data-bind="talk-meter" hidden><span class="lvl" style="display:block;height:100%" data-bind="talk-level"></span></span>
+            <span class="meter" aria-hidden="true" data-bind="talk-meter" hidden><span class="lvl" data-bind="talk-level"></span></span>
           </span>
         </button>
       </div>
 
       <section class="activity" aria-labelledby="act-h">
         <div class="act-head">
-          <h2 id="act-h" class="label" style="color:var(--ink)">Activity</h2>
+          <h2 id="act-h" class="label ink">Activity</h2>
           <div class="tabs" role="tablist" aria-label="Filter activity">
             <button type="button" class="tab" role="tab" aria-selected="true" data-filter="all">All</button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-filter="orders">Orders</button>
             <button type="button" class="tab" role="tab" aria-selected="false" data-filter="voice">Voice</button>
           </div>
-          <span class="spacer" style="flex:1"></span>
-          <button type="button" class="linkbtn" data-action="open-logs" style="font-size:13px">Log folder</button>
+          <span class="spacer"></span>
+          <button type="button" class="linkbtn text-sm" data-action="open-logs">Log folder</button>
         </div>
         <div class="rows" data-bind="rows"><div class="empty">Nothing yet. Hold the talk key and say "buy E S".</div></div>
       </section>
@@ -111,7 +111,7 @@
     <span class="wordmark">Settings</span>
     <span data-bind="badge"></span>
     <span class="spacer"></span>
-    <span class="muted" style="font-size:13px" data-bind="save-note">Changes save automatically</span>
+    <span class="muted text-sm" data-bind="save-note">Changes save automatically</span>
   </header>
   <div class="body">
     <nav class="navrail" aria-label="Settings sections">
@@ -127,37 +127,37 @@
         <div class="sec-head"><h2>Microphone</h2><p>The mic Callout listens to while you hold the talk key.</p></div>
         <div class="sec-body">
           <div class="joined-row">
-            <label class="field-label" style="flex:1 1 300px"><span>Use this microphone</span>
+            <label class="field-label"><span>Use this microphone</span>
               <select class="inp" data-mic-select></select>
             </label>
             <button type="button" class="btn" data-action="refresh-mics">Find mics again</button>
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="level-block">
             <span class="hint">Live level: talk normally and aim for the shaded band</span>
             <div class="meter tall" aria-hidden="true"><div class="band"></div><div class="lvl" data-bind="level"></div></div>
-            <span data-bind="level-text" style="font-size:13px"></span>
+            <span class="text-sm" data-bind="level-text"></span>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding-left:12%">
+          <div class="action-row indent">
             <button type="button" class="btn primary" data-action="test-command">TEST A COMMAND</button>
-            <span data-bind="test-text" style="font-size:13px">Nothing is traded during a test.</span>
+            <span class="text-sm" data-bind="test-text">Nothing is traded during a test.</span>
           </div>
         </div>
       </section>
       <section class="sec">
         <div class="sec-head"><h2>Talk key</h2><p>Hold it to talk. Works while TWS is in front, so pick a key TWS doesn't use.</p></div>
-        <div class="sec-body" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:16px">
+        <div class="sec-body inline">
           <span class="keycap" data-bind="keycap">F9</span>
           <button type="button" class="btn" data-action="capture-key">Change: press a new key</button>
-          <button type="button" class="linkbtn" data-action="no-key" style="font-size:13px">Use the on-screen button only</button>
+          <button type="button" class="linkbtn text-sm" data-action="no-key">Use the on-screen button only</button>
         </div>
       </section>
       <section class="sec">
         <div class="sec-head"><h2>Spoken replies</h2><p>Callout reads orders and fills back to you.</p></div>
-        <div class="sec-body" style="gap:0">
+        <div class="sec-body lines">
           <label class="line"><span>Read orders and fills out loud</span><input type="checkbox" data-setting="tts"></label>
           <label class="line"><span>Speed</span><input type="range" min="-10" max="10" step="1" data-setting="voice_rate"></label>
           <label class="line"><span>Volume</span><input type="range" min="0" max="100" step="5" data-setting="voice_volume"></label>
-          <div style="padding-top:16px"><button type="button" class="btn" data-action="sample">Play a sample</button></div>
+          <div class="below-lines"><button type="button" class="btn" data-action="sample">Play a sample</button></div>
         </div>
       </section>
       <section class="sec">
@@ -178,11 +178,11 @@
       </section>
       <section class="sec">
         <div class="sec-head"><h2>Size and limits</h2><p>Each "buy" or "sell" moves your position by one order size.</p></div>
-        <div class="sec-body" style="gap:0">
+        <div class="sec-body lines">
           <label class="line"><span>Contracts per order</span><input class="num" type="number" min="1" step="1" data-setting="quantity"></label>
           <label class="line"><span class="two"><span>Largest position allowed</span><small>Long or short. Orders past this are blocked.</small></span><input class="num" type="number" min="1" step="1" data-setting="max_position"></label>
           <label class="line"><span>Block orders when the market is closed</span><input type="checkbox" data-setting="check_market_hours"></label>
-          <details style="padding-top:14px">
+          <details class="more">
             <summary>More limits</summary>
             <label class="line"><span>Seconds between orders</span><input class="num" type="number" min="0" step="0.5" data-setting="min_seconds_between_orders"></label>
             <label class="line"><span>Orders per minute</span><input class="num" type="number" min="1" step="1" data-setting="max_orders_per_minute"></label>
@@ -191,7 +191,7 @@
       </section>
       <section class="sec">
         <div class="sec-head"><h2>Confirm and flatten</h2><p>How careful Callout is before it sends anything.</p></div>
-        <div class="sec-body" style="gap:0">
+        <div class="sec-body lines">
           <label class="line"><span class="two"><span>Read back buy and sell, wait for "confirm"</span><small>Off means a misheard word becomes a trade</small></span><input type="checkbox" data-setting="require_confirmation"></label>
           <label class="line"><span>Also confirm "flatten"</span><input type="checkbox" data-setting="confirm_flatten"></label>
           <label class="line"><span class="two"><span>Flatten also cancels orders placed by hand in TWS</span><small>Cancels every open order in the account, stocks included</small></span><input type="checkbox" data-setting="flatten_cancels_all_orders"></label>
@@ -200,18 +200,18 @@
       <section class="sec" id="connection">
         <div class="sec-head"><h2>Connection</h2><p>Callout talks to TWS or IB Gateway on this computer.</p><p data-bind="sim-note" hidden>Running with the simulator: no real connection is used.</p></div>
         <div class="sec-body">
-          <div style="display:flex;flex-wrap:wrap;gap:20px 28px;align-items:flex-end">
-            <fieldset style="border:0;padding:0;margin:0"><legend class="hint" style="padding:0 0 8px">App</legend>
+          <div class="conn-choices">
+            <fieldset class="choice"><legend class="hint">App</legend>
               <div class="seg"><label><input type="radio" name="conn-app" value="tws">TWS</label><label><input type="radio" name="conn-app" value="gateway">IB Gateway</label></div>
             </fieldset>
-            <fieldset style="border:0;padding:0;margin:0"><legend class="hint" style="padding:0 0 8px">Account</legend>
+            <fieldset class="choice"><legend class="hint">Account</legend>
               <div class="seg"><label><input type="radio" name="conn-mode" value="paper">Paper</label><label><input type="radio" name="conn-mode" value="live">Live (real money)</label></div>
             </fieldset>
-            <label class="field-label"><span>Port</span><input class="inp" style="width:96px" data-conn="port"></label>
+            <label class="field-label"><span>Port</span><input class="inp port" data-conn="port"></label>
           </div>
-          <p class="hint" style="font-size:12px">The port fills in from your choices (TWS paper 7497 · TWS live 7496 · Gateway paper 4002 · Gateway live 4001). Only change it if you changed it in TWS.</p>
+          <p class="hint fine">The port fills in from your choices (TWS paper 7497 · TWS live 7496 · Gateway paper 4002 · Gateway live 4001). Only change it if you changed it in TWS.</p>
           <div class="safety">
-            <span class="label" style="color:var(--ink)">Protect your account in TWS</span>
+            <span class="label ink">Protect your account in TWS</span>
             <ol>
               <li>Keep <strong>Allow connections from localhost only</strong> ticked in API › Settings, and don't add other trusted IPs. With the API on, any program on this computer can place orders through TWS.</li>
               <li>Set a size limit for futures in <strong>Presets › Futures › Precautionary Settings</strong>, for example 2 contracts (and a total value limit around $1,000,000), and keep <strong>API › Precautions › Bypass Order Precautions for API Orders</strong> unticked. TWS then stops oversized orders even if Callout had a bug.</li>
@@ -220,12 +220,12 @@
           </div>
           <div class="dashed" data-bind="live-box" hidden>
             <span class="label">Real money</span>
-            <label style="display:flex;flex-wrap:wrap;align-items:center;gap:12px"><span>Type LIVE to trade real money</span><input class="inp" style="width:120px" placeholder="LIVE" data-conn="live_confirm"></label>
+            <label class="live-confirm"><span>Type LIVE to trade real money</span><input class="inp word" placeholder="LIVE" data-conn="live_confirm"></label>
           </div>
-          <div style="display:flex;flex-wrap:wrap;align-items:stretch">
+          <div class="btnpair">
             <button type="button" class="btn primary" data-action="apply-connection">USE THIS CONNECTION</button>
-            <button type="button" class="btn joined" style="border-left:0" data-action="test-connection">Test</button>
-            <span class="result" data-bind="conn-result">Current: <span data-bind="conn-current" style="margin-left:6px"></span></span>
+            <button type="button" class="btn joined" data-action="test-connection">Test</button>
+            <span class="result" data-bind="conn-result">Current: <span class="current" data-bind="conn-current"></span></span>
           </div>
         </div>
       </section>
@@ -242,20 +242,20 @@
     <span data-bind="badge"></span>
   </header>
   <div class="body">
-    <ol class="navrail" aria-label="Setup steps" style="margin:0;list-style:none">
+    <ol class="navrail" aria-label="Setup steps">
       <li data-step-nav="1"><span class="num-big">1</span>Connect to TWS</li>
       <li data-step-nav="2"><span class="num-big">2</span>Pick your microphone</li>
       <li data-step-nav="3"><span class="num-big">3</span>Check you can hear it</li>
       <li data-step-nav="4"><span class="num-big">4</span>Practice on paper</li>
     </ol>
-    <main class="content" style="gap:30px">
-      <section data-step="1" style="display:flex;flex-direction:column;gap:30px">
-        <div style="display:flex;flex-direction:column;gap:12px">
+    <main class="content">
+      <section class="setup-step" data-step="1">
+        <div class="setup-head">
           <p class="label">Step 1 of 4</p>
           <h1 class="setup-title">Connect to<br>Trader Workstation</h1>
           <p class="setup-sub">Callout sends your orders through TWS, so it needs to be open with its API turned on.</p>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:32px 48px;align-items:flex-start;border-top:2.5px solid var(--ink);padding-top:24px">
+        <div class="setup-body split">
           <ol class="steps-list">
             <li><span class="muted">01</span><span>Open TWS and log in with <strong>Paper</strong> selected.</span></li>
             <li><span class="muted">02</span><span>Click the gear icon, then <strong>API › Settings</strong>.</span></li>
@@ -265,65 +265,65 @@
           </ol>
           <div class="shot" role="img" aria-label="Where the API settings are in TWS">TWS › Global Configuration › API › Settings<br>Enable ActiveX and Socket Clients: on<br>Read-Only API: off<br>Socket port: 7497</div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;align-items:stretch">
-          <button type="button" class="btn primary" style="min-height:56px" data-action="setup-test">TEST CONNECTION</button>
+        <div class="btnpair">
+          <button type="button" class="btn primary tall" data-action="setup-test">TEST CONNECTION</button>
           <span class="result" data-bind="setup-result">Not tested yet</span>
         </div>
       </section>
 
-      <section data-step="2" hidden style="display:flex;flex-direction:column;gap:28px">
-        <div style="display:flex;flex-direction:column;gap:12px">
+      <section class="setup-step" data-step="2" hidden>
+        <div class="setup-head">
           <p class="label">Step 2 of 4</p>
           <h1 class="setup-title">Pick your<br>microphone</h1>
           <p class="setup-sub">Choose the mic you talk into, then hold F9 (or the button) and say "buy E S". Nothing is traded.</p>
         </div>
-        <div style="display:flex;flex-direction:column;gap:18px;border-top:2.5px solid var(--ink);padding-top:24px">
+        <div class="setup-body">
           <div class="joined-row">
-            <label class="field-label" style="flex:1 1 300px"><span>Microphone</span><select class="inp" data-mic-select></select></label>
+            <label class="field-label"><span>Microphone</span><select class="inp" data-mic-select></select></label>
             <button type="button" class="btn" data-action="refresh-mics">Find mics again</button>
           </div>
           <div class="meter tall" aria-hidden="true"><div class="band"></div><div class="lvl" data-bind="level"></div></div>
-          <span data-bind="level-text" style="font-size:13px"></span>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+          <span class="text-sm" data-bind="level-text"></span>
+          <div class="action-row">
             <button type="button" class="btn primary" data-action="test-command">TEST A COMMAND</button>
             <button type="button" class="btn" data-talk-small>Hold to talk</button>
-            <span data-bind="test-text" style="font-size:13px"></span>
+            <span class="text-sm" data-bind="test-text"></span>
           </div>
         </div>
       </section>
 
-      <section data-step="3" hidden style="display:flex;flex-direction:column;gap:28px">
-        <div style="display:flex;flex-direction:column;gap:12px">
+      <section class="setup-step" data-step="3" hidden>
+        <div class="setup-head">
           <p class="label">Step 3 of 4</p>
           <h1 class="setup-title">Check you<br>can hear it</h1>
           <p class="setup-sub">Callout reads every order back. Make sure you can hear it on the speakers or headset you'll use.</p>
         </div>
-        <div style="display:flex;flex-direction:column;border-top:2.5px solid var(--ink);padding-top:12px">
+        <div class="setup-body">
           <label class="line"><span>Read orders and fills out loud</span><input type="checkbox" data-setting="tts"></label>
           <label class="line"><span>Volume</span><input type="range" min="0" max="100" step="5" data-setting="voice_volume"></label>
-          <div style="padding-top:16px"><button type="button" class="btn primary" data-action="sample">PLAY A SAMPLE</button></div>
+          <div class="below-lines"><button type="button" class="btn primary" data-action="sample">PLAY A SAMPLE</button></div>
         </div>
       </section>
 
-      <section data-step="4" hidden style="display:flex;flex-direction:column;gap:28px">
-        <div style="display:flex;flex-direction:column;gap:12px">
+      <section class="setup-step" data-step="4" hidden>
+        <div class="setup-head">
           <p class="label">Step 4 of 4</p>
           <h1 class="setup-title">Practice<br>on paper</h1>
           <p class="setup-sub">Hold F9 and say "buy E S". Listen to the readback, then hold F9 and say "confirm". Say "flatten" to close it.</p>
         </div>
-        <div style="display:flex;flex-direction:column;gap:14px;border-top:2.5px solid var(--ink);padding-top:24px">
+        <div class="setup-body">
           <p class="label">Right now</p>
-          <p style="margin:0;font-size:40px;font-weight:700;letter-spacing:-0.03em" data-bind="practice-pos">—</p>
-          <p style="margin:0" data-bind="practice-last"></p>
+          <p class="practice-pos" data-bind="practice-pos">—</p>
+          <p class="practice-last" data-bind="practice-last"></p>
           <p class="hint" data-bind="practice-note"></p>
         </div>
       </section>
 
       <div class="setup-foot">
-        <button type="button" class="linkbtn" data-action="setup-skip" style="font-size:13px">Skip setup for now</button>
-        <div style="display:flex">
+        <button type="button" class="linkbtn text-sm" data-action="setup-skip">Skip setup for now</button>
+        <div class="setup-buttons">
           <button type="button" class="btn" data-action="setup-back">Back</button>
-          <button type="button" class="btn primary" style="border-left:0;display:flex;align-items:center;gap:10px" data-action="setup-next"><span data-bind="next-label">NEXT</span><svg width="18" height="18" aria-hidden="true"><use href="#i-next"/></svg></button>
+          <button type="button" class="btn primary joined with-icon" data-action="setup-next"><span data-bind="next-label">NEXT</span><svg width="18" height="18" aria-hidden="true"><use href="#i-next"/></svg></button>
         </div>
       </div>
     </main>
@@ -346,13 +346,13 @@
       </div>
       <span class="mini-msg" data-bind="mini-msg">—</span>
       <div class="mini-actions" data-bind="mini-actions">
-        <button type="button" class="btn mini-talk" data-talk aria-label="Hold to talk"><svg width="14" height="14" aria-hidden="true" style="vertical-align:-2px"><use href="#i-mic"/></svg> <span data-bind="mini-key">F9</span></button>
-        <span class="meterwrap" aria-hidden="true"><span class="meter" style="display:block"><span class="lvl" style="display:block;height:100%" data-bind="level"></span></span></span>
+        <button type="button" class="btn mini-talk" data-talk aria-label="Hold to talk"><svg width="14" height="14" aria-hidden="true"><use href="#i-mic"/></svg> <span data-bind="mini-key">F9</span></button>
+        <span class="meterwrap" aria-hidden="true"><span class="meter"><span class="lvl" data-bind="level"></span></span></span>
         <button type="button" class="btn primary" data-hold="flatten" aria-label="Flatten all: press and hold">FLATTEN</button>
       </div>
       <div class="mini-actions" data-bind="mini-confirm" hidden>
-        <button type="button" class="btn primary" data-cmd="confirm" style="flex:1">CONFIRM</button>
-        <button type="button" class="btn" data-cmd="cancel" style="border-left:0">Cancel</button>
+        <button type="button" class="btn primary grow" data-cmd="confirm">CONFIRM</button>
+        <button type="button" class="btn joined" data-cmd="cancel">Cancel</button>
       </div>
     </div>
   </div>
@@ -361,14 +361,14 @@
 <!-- live unlock -->
 <div class="modal" data-bind="live-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="live-h">
-    <span class="badge live" style="align-self:flex-start"><svg width="16" height="16" aria-hidden="true"><use href="#i-warn"/></svg>LIVE · REAL MONEY</span>
+    <span class="badge live"><svg width="16" height="16" aria-hidden="true"><use href="#i-warn"/></svg>LIVE · REAL MONEY</span>
     <h2 id="live-h">Callout is set to trade your real account.</h2>
-    <p style="margin:0">Orders you confirm will use real money. Type LIVE to connect, or switch to paper.</p>
+    <p>Orders you confirm will use real money. Type LIVE to connect, or switch to paper.</p>
     <input class="inp" placeholder="LIVE" aria-label="Type LIVE" data-bind="live-input">
     <p class="hint" data-bind="live-error"></p>
-    <div style="display:flex;flex-wrap:wrap">
+    <div class="btnpair">
       <button type="button" class="btn primary" data-action="unlock-live">CONNECT TO LIVE</button>
-      <button type="button" class="btn" style="border-left:0" data-action="use-paper">Switch to paper</button>
+      <button type="button" class="btn joined" data-action="use-paper">Switch to paper</button>
     </div>
   </div>
 </div>

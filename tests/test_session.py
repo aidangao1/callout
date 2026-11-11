@@ -4,8 +4,9 @@ import time
 
 import pytest
 
+from callout.app.activity import feed_row
+from callout.app.session import Session
 from callout.config import load_config
-from callout.session import Session, feed_row
 
 
 def wait_for(cond, timeout=5.0):
@@ -130,11 +131,37 @@ def test_test_connection_with_simulator(session):
 
 
 def test_feed_row_wording():
-    assert feed_row({"event": "heard", "ts": "2026-11-09T10:00:01.000-05:00", "text": "buy e s", "intent": "BUY ES",
-                     "source": "voice", "stt_ms": 240.0})["text"] == '"buy e s" → Buy ES'
-    r = feed_row({"event": "order_result", "ts": "2026-11-09T10:00:02.500-05:00", "status": "Filled", "action": "SELL",
-                  "filled": 1, "contract": "ESZ6", "avg_price": 6003.5, "release_to_done_ms": 1400.0})
-    assert r["kind"] == "Filled" and r["text"] == "Sold 1 ESZ6 at 6003.50" and r["meta"] == "1.4 s" and r["time"] == "10:00:02"
+    assert (
+        feed_row(
+            {
+                "event": "heard",
+                "ts": "2026-11-09T10:00:01.000-05:00",
+                "text": "buy e s",
+                "intent": "BUY ES",
+                "source": "voice",
+                "stt_ms": 240.0,
+            }
+        )["text"]
+        == '"buy e s" → Buy ES'
+    )
+    r = feed_row(
+        {
+            "event": "order_result",
+            "ts": "2026-11-09T10:00:02.500-05:00",
+            "status": "Filled",
+            "action": "SELL",
+            "filled": 1,
+            "contract": "ESZ6",
+            "avg_price": 6003.5,
+            "release_to_done_ms": 1400.0,
+        }
+    )
+    assert (
+        r["kind"] == "Filled"
+        and r["text"] == "Sold 1 ESZ6 at 6003.50"
+        and r["meta"] == "1.4 s"
+        and r["time"] == "10:00:02"
+    )
     assert feed_row({"event": "shutdown"}) is None
 
 
@@ -162,3 +189,20 @@ def test_no_warning_when_flatten_cancels_everything(session):
     time.sleep(0.3)
     snap = session.snapshot()
     assert snap["leftover"] == 0 and snap["last"]["kind"] == "filled"
+
+
+def test_test_a_command_reports_what_was_heard_without_trading(session):
+    """The Settings screen's "Test a command" button: hear, interpret, never trade."""
+    from callout.voice.recognizer import Transcript
+
+    class FakeTranscriber:
+        def transcribe(self, pcm, rate=None):
+            return Transcript("buy e s", 1.0, False)
+
+    session.transcriber = FakeTranscriber()
+    session.start_test()
+    session.loop.call_soon_threadsafe(session._queue.put_nowait, ("audio", b"\x00\x00" * 1600, time.monotonic()))
+    assert wait_for(lambda: session.snapshot()["test_result"] is not None)
+    result = session.snapshot()["test_result"]
+    assert result["ok"] and result["intent"] == "Buy ES" and result["text"] == "buy e s"
+    assert session.snapshot()["pending"] is None and session.snapshot()["instruments"][0]["qty"] == 0
