@@ -8,7 +8,8 @@ Trade ES futures with your voice. Hold a key, say **"buy E S"**, hear the order 
 
 - A **Windows** computer
 - A **microphone**. A headset works best.
-- An **Interactive Brokers** account with **futures trading** turned on. Every IBKR account comes with a free paper trading account for practice.
+- An **Interactive Brokers** account with **futures trading** turned on, and its free **paper trading** (practice) account. Newer accounts get one automatically. If yours doesn't have one, request it in IBKR's Client Portal under Settings › **Paper Trading Account**; it's usually ready the next business day.
+- No paper account yet? You can still try everything with fake trades: see [Try it with the simulator](#try-it-with-the-simulator).
 - About 15 minutes
 
 ---
@@ -38,14 +39,16 @@ If Windows shows **"Windows protected your PC"**, click **More info**, then **Ru
 TWS is Interactive Brokers' trading app. Callout sends orders through it, so it has to be open while you trade.
 
 1. Download **Trader Workstation** from interactivebrokers.com and install it.
-2. Open TWS. On the login screen, switch to **Paper**, then log in.
+2. Open TWS. On the login screen, switch to **Paper**, then log in with your **paper** username and password (they're different from your live ones).
 3. Click the **gear icon** at the top right of TWS. In some versions it's in the **File** or **Edit** menu, called **Global Configuration**.
 4. In the list on the left, open **API**, then click **Settings**.
 5. Tick **Enable ActiveX and Socket Clients**.
 6. Untick **Read-Only API**.
-7. Check that **Socket port** says **7497**.
+7. Check that **Socket port** says **7497**. That's the paper port. Your live login shows **7496**, which is normal: leave it as it is. Callout uses the right port when you choose Paper or Live.
 8. Leave **Allow connections from localhost only** ticked.
 9. Click **Apply**, then **OK**. Leave TWS open.
+
+Paper and live are separate logins with separate settings. Even if you've turned on the API in your live login before, do these steps while logged in to **Paper**.
 
 Then set up the safety settings in the next section. They take two minutes.
 
@@ -71,6 +74,17 @@ The first time, Callout walks you through a short setup:
 4. **Practice on paper:** place and close a practice order.
 
 The first start also downloads a speech model (about 40 MB), which takes a moment.
+
+### Try it with the simulator
+
+No paper account yet? The simulator lets you try everything without TWS or an IBKR account. Your mic, the talk key, spoken replies, confirm and flatten all work for real; only the fills are fake.
+
+1. Open the Callout folder in File Explorer.
+2. Click the address bar at the top, type `cmd`, and press **Enter**. A black window opens in that folder.
+3. Type `start.bat --sim` and press **Enter**. The top bar shows **SIMULATOR**.
+4. If the market is closed, go to **Settings › Trading** and turn off **Block orders when the market is closed**. Turn it back on before you trade on paper or live: settings are shared.
+
+When your paper account is ready, do Step 4 and double-click `start.bat` as usual. To see the first-run setup again, use **Settings › Run setup again**.
 
 ---
 
@@ -123,7 +137,7 @@ Click **Settings** in the top right. Changes apply right away and are saved for 
 
 - **Microphone and voice:** pick your mic (with a live level meter), test a command, change the talk key, turn spoken replies on or off, set their speed and volume, and add words Callout should ignore.
 - **Trading:** turn ES and Micro E-mini (MES) on or off, contracts per order, the largest position allowed, the market-hours check, and the confirm settings.
-- **Connection:** TWS or IB Gateway, paper or live. The port fills in by itself.
+- **Connection:** TWS or IB Gateway, paper or live. The port fills in by itself (TWS: paper 7497, live 7496). Only type a different one if you changed it in TWS.
 - **Logs:** opens the folder with the daily log files.
 - **Run setup again:** repeats the first-run setup.
 
@@ -148,7 +162,7 @@ Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mista
 | Problem | Fix |
 |---|---|
 | `install.bat` says Python isn't installed | Reinstall Python and tick **"Add python.exe to PATH"**. |
-| "Couldn't reach TWS" | TWS isn't open and logged in, or Step 4 wasn't done. |
+| "Couldn't reach TWS" | TWS isn't open and logged in, or Step 4 wasn't done in the login you're using. If TWS is logged in to your live account, it listens on 7496, not the paper port 7497: log in with **Paper**. |
 | "looks LIVE, refusing to trade" | You logged TWS into your real account. Log in with **Paper** selected. |
 | "no ES futures" | Turn on futures trading in IBKR's Client Portal, under Settings › Trading Permissions. |
 | Holding F9 does nothing | On a laptop, try **Fn + F9**, or change the talk key in Settings. If you started TWS with "Run as administrator", start it normally instead. The on-screen **HOLD TO TALK** button always works. |

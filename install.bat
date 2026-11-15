@@ -24,8 +24,6 @@ echo Installing packages. This can take a minute or two...
 ".venv\Scripts\python.exe" -m pip install -e .
 if errorlevel 1 goto failed
 
-if not exist "config.toml" ".venv\Scripts\python.exe" -m callout init
-
 echo.
 echo ============================================================
 echo   Done. Next: set up TWS (README step 4), then double-click

@@ -206,3 +206,20 @@ def test_test_a_command_reports_what_was_heard_without_trading(session):
     result = session.snapshot()["test_result"]
     assert result["ok"] and result["intent"] == "Buy ES" and result["text"] == "buy e s"
     assert session.snapshot()["pending"] is None and session.snapshot()["instruments"][0]["qty"] == 0
+
+
+def test_first_run_setup_writes_the_config_when_finished(tmp_path):
+    """install.bat doesn't create config.toml, so the first start shows setup and finishing it saves."""
+    path = tmp_path / "config.toml"
+    cfg = load_config(None)
+    cfg.log_dir = str(tmp_path / "logs")
+    s = Session(cfg, path, use_sim=True, audio=False, tts=False, first_run=not path.exists())
+    s.start()
+    try:
+        assert wait_for(lambda: s.snapshot().get("ready"))
+        assert s.snapshot()["first_run"] and not path.exists()
+        s.finish_setup()
+        assert path.exists() and wait_for(lambda: not s.snapshot()["first_run"])
+        assert load_config(path).broker.port == cfg.broker.port
+    finally:
+        s.stop()
