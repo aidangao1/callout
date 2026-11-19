@@ -22,6 +22,9 @@ from .journal import Journal
 from .risk import RiskManager
 
 CHECK_PLATFORM = "Check your platform."
+# Commands from these sources always get a readback and need "confirm", flatten included:
+# the phone's mic is always on, so a misheard word must never trade on its own.
+CONFIRM_ALWAYS = {"phone"}
 
 
 @dataclass
@@ -36,7 +39,7 @@ class Pending:
 class Meta:
     """Where a command came from and when, for the latency columns in the log."""
 
-    source: str = "text"  # "voice" or "text"
+    source: str = "text"  # "voice", "text", "ui" or "phone"
     confidence: float | None = None
     t_release: float | None = None  # key released (monotonic)
     t_heard: float | None = None  # transcript ready (monotonic)
@@ -254,7 +257,7 @@ class Engine:
             self.pending = None
 
         if intent.action is Action.FLATTEN:
-            if self.cfg.safety.confirm_flatten:
+            if self.cfg.safety.confirm_flatten or meta.source in CONFIRM_ALWAYS:
                 self.pending = Pending(intent, 0, 0, self._mono())
                 self._arm_expiry(self.pending)
                 target = self.cfg.instruments[intent.symbol].label if intent.symbol else "everything"
@@ -326,7 +329,7 @@ class Engine:
         if not decision.ok:
             return await self._block(intent, decision.reason, position=current)
 
-        if self.cfg.safety.require_confirmation:
+        if self.cfg.safety.require_confirmation or meta.source in CONFIRM_ALWAYS:
             self.pending = Pending(intent, current, resulting, self._mono())
             self._arm_expiry(self.pending)
             verb = "Buy" if intent.action is Action.BUY else "Sell"

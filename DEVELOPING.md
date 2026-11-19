@@ -107,7 +107,7 @@ Every utterance, decision, order and fill is written to `logs/callout-YYYY-MM-DD
  "status": "Filled", "filled": 1, "avg_price": 6001.25, "send_to_done_ms": 212.4, "release_to_done_ms": 1430.9}
 ```
 
-Event types: `startup`, `heard` (with `rejected` reason if any), `awaiting_confirm`, `confirmed`, `cancelled`, `blocked`, `order_sent`, `order_result`, `position_mismatch`, `orders_cancelled`, `flatten_incomplete`, `contract_roll`, `contract_roll_deferred`, `broker_error`, `disconnected`, `connect_failed`, `reconnect_failed`, `error`, `shutdown`.
+Event types: `startup`, `heard` (with `rejected` reason if any), `awaiting_confirm`, `confirmed`, `cancelled`, `blocked`, `order_sent`, `order_result`, `position_mismatch`, `orders_cancelled`, `flatten_incomplete`, `contract_roll`, `contract_roll_deferred`, `broker_error`, `disconnected`, `connect_failed`, `reconnect_failed`, `phone`, `post_error`, `update_available`, `error`, `shutdown`.
 
 ## Going live
 
@@ -170,22 +170,42 @@ callout/
     ibkr.py              Interactive Brokers (ib_async)
     ibkr_messages.py     IBKR errors in plain words
     sim.py               simulated fills
+  remote/                reaching Callout away from the computer
+    phone_protocol.py    pairing, end-to-end encryption (NaCl secretbox), replay checks
+    phone_link.py        Callout's connection to the relay, with reconnects
+    wake.py              hands-free rules: the "call out" wake word, bare confirm while waiting
+    posting.py           background delivery to group chats, rate limits, errors
+    discord_post.py      Discord, through a channel webhook
+    telegram_post.py     Telegram, through a bot added to the group
   app/                   the desktop app
     window.py            the window and the page's Python API
     session.py           runs everything behind the window
     settings.py          the Settings screen <-> config
     activity.py          log records -> Activity rows
+    updates.py           checks GitHub releases, downloads and checks the new version
+    apply_update.py      standalone: swaps the files after the window closes, rolls back on failure
     web/                 the page (theme.css = colors and font)
   console/               the same features without the window
     trade.py             python -m callout run
     tools.py             init, check, devices, mic-scan, mic-test, tts-test
     common.py            helpers they share
-tests/                   test_<module>.py per area; helpers.py has the shared fakes
+relay/                   the Cloudflare Worker phones and Callout meet at, plus the phone test page
+tests/                   test_<module>.py per area; helpers.py and fake_relay.py have the shared fakes
 troubleshooting/         console launchers: start-console, mic-test, check-connection
 install.bat, start.bat   the two launchers most people need
 ```
 
 Run the tests with `pip install -e .[dev]` then `python -m pytest`. Lint and format with `ruff check .` and `ruff format .` (settings are in `pyproject.toml`).
+
+## Releasing
+
+The app updates itself from this repo's GitHub releases, so a release has to be done in this order:
+
+1. Bump the version in **both** `pyproject.toml` and `callout/__init__.py` (e.g. `0.11.0`).
+2. Commit and push.
+3. On GitHub, create a release whose tag is exactly that version (`0.11.0`, or `v0.11.0`). Leave the default source ZIP; the app downloads it.
+
+The updater refuses a release whose tag doesn't match the version inside it, so a mismatch is safe but nobody gets the update. It never touches `config.toml`, `logs/`, `models/` or `.venv/`, keeps the previous version in `.update-backup/`, and puts it back if installing fails. Git checkouts are never updated by the app; use `git pull`.
 
 ## Extending
 

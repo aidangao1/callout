@@ -10,19 +10,26 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field, fields
 
+from .. import __version__
 from ..config import (
     DEFAULT_INSTRUMENTS,
+    DEFAULT_RELAY,
     BrokerConfig,
     Config,
     ConfigError,
+    DiscordConfig,
     Instrument,
+    PhoneConfig,
     SafetyConfig,
+    TelegramConfig,
+    UpdatesConfig,
     VoiceConfig,
     app_for_port,
     default_port,
     validate,
 )
 from ..voice.intents import IntentParser, normalize
+from . import autostart
 
 _LIGHT_SAFETY = {
     "require_confirmation": bool,
@@ -35,11 +42,21 @@ _LIGHT_SAFETY = {
     "confirm_timeout_s": float,
 }
 _CONNECTION_KEYS = {"app", "mode", "port", "host", "live_confirm"}
+_NOT_CONFIG = {"autostart"}  # Windows settings, not config.toml: the session applies these
 
 
 def _restore(cfg: Config, before: Config) -> None:
     """Put cfg back exactly as it was, in place (the engine holds this same object)."""
-    for name, cls in (("broker", BrokerConfig), ("voice", VoiceConfig), ("safety", SafetyConfig)):
+    sections = (
+        ("broker", BrokerConfig),
+        ("voice", VoiceConfig),
+        ("safety", SafetyConfig),
+        ("discord", DiscordConfig),
+        ("telegram", TelegramConfig),
+        ("phone", PhoneConfig),
+        ("updates", UpdatesConfig),
+    )
+    for name, cls in sections:
         for f in fields(cls):
             setattr(getattr(cfg, name), f.name, copy.deepcopy(getattr(getattr(before, name), f.name)))
     cfg.instruments.clear()
@@ -48,7 +65,7 @@ def _restore(cfg: Config, before: Config) -> None:
 
 @dataclass
 class Applied:
-    needs: set[str] = field(default_factory=set)  # "grammar", "talker" and/or "connection"
+    needs: set[str] = field(default_factory=set)  # "grammar", "talker", "connection" and/or "poster"
     live_unlocked: bool = False
 
 
@@ -76,6 +93,17 @@ def settings_view(cfg: Config, use_sim: bool) -> dict:
         "voice_rate": c.voice.voice_rate,
         "voice_volume": c.voice.voice_volume,
         "decoys": list(c.voice.decoys),
+        "discord_webhook": c.discord.webhook_url,
+        "telegram_token": c.telegram.bot_token,
+        "telegram_chat": c.telegram.chat_id,
+        "telegram_chat_title": c.telegram.chat_title,
+        "check_updates": c.updates.check,
+        "phone_relay": c.phone.relay,
+        "phone_relay_default": DEFAULT_RELAY,
+        "autostart": autostart.is_enabled(),
+        "autostart_supported": autostart.supported(),
+        "phone_paired": bool(c.phone.room and c.phone.key),
+        "version": __version__,
         "sim": use_sim,
     }
 
@@ -86,7 +114,7 @@ def apply_patch(cfg: Config, patch: dict, live_unlocked: bool) -> Applied:
     needs: set[str] = set()
     try:
         for k, v in patch.items():
-            if k in _CONNECTION_KEYS:
+            if k in _CONNECTION_KEYS or k in _NOT_CONFIG:
                 continue
             if k in _LIGHT_SAFETY:
                 setattr(cfg.safety, k, _LIGHT_SAFETY[k](v))
@@ -110,6 +138,24 @@ def apply_patch(cfg: Config, patch: dict, live_unlocked: bool) -> Applied:
             elif k == "decoys":
                 cfg.voice.decoys = sorted({normalize(d) for d in v if normalize(d)})
                 needs.add("grammar")
+            elif k == "discord_webhook":
+                cfg.discord.webhook_url = str(v or "").strip()
+                needs.add("poster")
+            elif k == "telegram_token":
+                cfg.telegram.bot_token = str(v or "").strip()
+                if not cfg.telegram.bot_token:
+                    cfg.telegram.chat_id = cfg.telegram.chat_title = ""
+                needs.add("poster")
+            elif k == "telegram_chat":
+                cfg.telegram.chat_id = str(v or "").strip()
+                needs.add("poster")
+            elif k == "telegram_chat_title":
+                cfg.telegram.chat_title = str(v or "").strip()[:100]
+            elif k == "phone_relay":
+                cfg.phone.relay = str(v or "").strip().rstrip("/")
+                needs.add("phone")
+            elif k == "check_updates":
+                cfg.updates.check = bool(v)
             elif k in ("es_enabled", "mes_enabled"):
                 sym = "ES" if k == "es_enabled" else "MES"
                 if sym not in cfg.instruments:

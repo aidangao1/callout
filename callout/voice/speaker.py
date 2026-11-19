@@ -138,3 +138,59 @@ class SilentSpeaker(Speaker):
 
     def say(self, text: str, interrupt: bool = False) -> None:
         self.said.append(text)
+
+
+# ---- replies as audio, for the phone --------------------------------------------------------------
+
+SAFT16K_16BIT_MONO = 18  # SAPI audio format: 16 kHz, 16-bit, mono (small enough to send quickly)
+SSFM_CREATE_FOR_WRITE = 3
+
+
+def render_wav(text: str, rate: int = 2, volume: int = 100) -> bytes | None:
+    """Speak `text` into a WAV file instead of the speakers, and return its bytes.
+
+    Used to send replies to the phone so they play in the earbuds. Returns None if no
+    voice is available; the phone then speaks the text with its own voice.
+    """
+    import os
+    import tempfile
+
+    fd, path = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    try:
+        if sys.platform == "win32":
+            import comtypes
+            import comtypes.client
+
+            comtypes.CoInitialize()
+            try:
+                fmt = comtypes.client.CreateObject("SAPI.SpAudioFormat")
+                fmt.Type = SAFT16K_16BIT_MONO
+                stream = comtypes.client.CreateObject("SAPI.SpFileStream")
+                stream.Format = fmt
+                stream.Open(path, SSFM_CREATE_FOR_WRITE)
+                voice = comtypes.client.CreateObject("SAPI.SpVoice")
+                voice.AudioOutputStream = stream
+                voice.Rate, voice.Volume = rate, volume
+                voice.Speak(text)
+                stream.Close()
+            finally:
+                comtypes.CoUninitialize()
+        else:
+            import pyttsx3
+
+            engine = pyttsx3.init()
+            engine.setProperty("rate", 200 + rate * 12)
+            engine.setProperty("volume", volume / 100)
+            engine.save_to_file(text, path)
+            engine.runAndWait()
+        with open(path, "rb") as f:
+            data = f.read()
+        return data if len(data) > 44 else None  # a bare header means nothing was spoken
+    except Exception:
+        return None
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass

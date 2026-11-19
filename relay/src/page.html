@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B1B1B">
+<title>Callout phone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"
+        integrity="sha384-05+sicyRJQ56XpL4U9HJ8YbtSzFDvAg7apPKOGV6A0JsAJKFM68jp5oLnUjG5mEp" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --ink: #1B1B1B; --paper: #F4F4F1; --surface: #FFFFFF; --muted: #55554F; --line: #D6D6D1;
+    --line-strong: #8A8A84; --on-ink-muted: #B8B8B2; --danger: #C8102E;
+    --font: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; border-radius: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  [hidden] { display: none !important; }
+  .label { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  .top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 14px 16px; background: var(--surface); border-bottom: 2.5px solid var(--ink); }
+  .wordmark { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .dot { width: 9px; height: 9px; background: var(--ink); display: inline-block; flex: none; }
+  .dot.off { background: transparent; border: 1.5px solid var(--ink); }
+  .conn { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .badge { margin-left: auto; padding: 4px 8px; border: 2px solid var(--ink); font-weight: 700; font-size: 11px; letter-spacing: 0.08em; }
+  .badge.live { background: var(--ink); color: var(--surface); }
+
+  .pos { background: var(--ink); color: var(--surface); padding: 22px 16px 20px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px 12px; }
+  .pos .label { color: var(--on-ink-muted); grid-column: 1 / -1; }
+  .pos strong { font-size: 52px; line-height: 0.9; letter-spacing: -0.03em; }
+  .pos span { color: var(--on-ink-muted); padding-bottom: 4px; }
+
+  main { padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 18px; }
+  .pending { border: 2px solid var(--ink); background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .pending .head { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .pair { display: grid; grid-template-columns: 2fr 1fr; }
+  .btn { min-height: 56px; border: 2px solid var(--ink); background: var(--surface); font-weight: 500; }
+  .btn.primary { background: var(--ink); color: var(--surface); font-weight: 700; }
+  .pair .btn + .btn { border-left: 0; }
+
+  .last { margin: 0; padding-left: 12%; font-size: 17px; min-height: 1.4em; }
+  .listen { width: 100%; min-height: 150px; border: 2px solid var(--ink); background: var(--ink); color: var(--surface); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 18px; text-align: left; }
+  .listen .t { font-size: 24px; font-weight: 700; line-height: 1.05; }
+  .listen .s { font-size: 13px; color: var(--on-ink-muted); }
+  .listen.on { background: var(--surface); color: var(--ink); }
+  .listen.on .s { color: var(--muted); }
+  .meter { position: relative; width: 100%; height: 10px; border: 1.5px solid currentColor; }
+  .meter .band { position: absolute; left: 30%; width: 20%; top: 0; bottom: 0; background: var(--line); }
+  .meter .lvl { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: currentColor; }
+  .heard { margin: 0; color: var(--muted); font-size: 13px; min-height: 1.3em; }
+
+  .flatten { position: relative; overflow: hidden; width: 78%; margin-left: auto; min-height: 76px; border: 2px solid var(--ink); background: var(--surface); text-align: left; padding: 12px 14px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .flatten .t { font-size: 20px; font-weight: 700; position: relative; }
+  .flatten .s { font-size: 12px; color: var(--muted); position: relative; }
+  .hold { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .hold .t { position: relative; }
+  .hold .fill { position: absolute; inset: auto 0 0 0; height: 0; background: var(--line); }
+  .btn.primary.hold .fill { background: var(--muted); }
+  .hold.holding .fill { height: 100%; transition: height 0.9s linear; }
+
+  .note { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .unpaired { padding: 28px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .unpaired h1 { margin: 0; font-size: 34px; line-height: 0.95; letter-spacing: -0.03em; }
+  .unpaired p { margin: 0; padding-left: 12%; color: var(--muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="wordmark">Callout</span>
+  <span class="conn"><span class="dot off" id="dot"></span><span id="conn">Starting…</span></span>
+  <span class="badge" id="badge" hidden></span>
+</header>
+
+<section class="unpaired" id="unpaired" hidden>
+  <h1>Pair this<br>phone first</h1>
+  <p>On your computer, open Callout, then Settings › Phone, and scan the QR code with this phone's camera.</p>
+</section>
+
+<div id="app" hidden>
+  <section class="pos" aria-label="Position">
+    <p class="label" id="contract">Position</p>
+    <strong id="position">—</strong>
+    <span id="market"></span>
+  </section>
+
+  <main>
+    <section class="pending" id="pending" hidden aria-live="polite">
+      <p class="label">Waiting for confirm</p>
+      <p class="head" id="pending-head"></p>
+      <div class="pair">
+        <button type="button" class="btn primary hold" data-hold-cmd="confirm" aria-label="Confirm: press and hold"><span class="fill"></span><span class="t">HOLD TO CONFIRM</span></button>
+        <button type="button" class="btn" data-cmd="cancel">Cancel</button>
+      </div>
+    </section>
+
+    <p class="last" id="last" aria-live="polite"></p>
+
+    <button type="button" class="listen" id="listen">
+      <span class="t" id="listen-t">START<br>LISTENING</span>
+      <span class="meter" aria-hidden="true"><span class="band"></span><span class="lvl" id="lvl"></span></span>
+      <span class="s" id="listen-s">Then say "Call out, buy E S"</span>
+    </button>
+    <p class="heard" id="heard"></p>
+
+    <button type="button" class="flatten hold" data-hold-cmd="flatten" aria-label="Flatten all: press and hold">
+      <span class="fill"></span>
+      <span class="t">FLATTEN ALL</span>
+      <span class="s">press and hold · then confirm</span>
+    </button>
+
+    <p class="note">This page only listens while it's on screen. To keep it going in your pocket, use Guided Access (see the quick start). The Callout iPhone app will listen with the phone locked. Every order from the phone needs "confirm".</p>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* Callout phone test page. Same protocol as the app: frames are sealed with NaCl secretbox
+   using the key from the pairing link's "#" part, which never leaves this phone and the PC. */
+
+const $ = (id) => document.getElementById(id);
+const MAX_SKEW_MS = 120000;
+const RATE = 16000;
+
+// ---- pairing ----------------------------------------------------------------------------------
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+}
+function bytesToB64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function readPairing() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  let p = q.get("r") && q.get("k") ? { room: q.get("r"), key: q.get("k") } : null;
+  try {
+    if (p) localStorage.setItem("callout.pairing", JSON.stringify(p));
+    else p = JSON.parse(localStorage.getItem("callout.pairing") || "null");
+  } catch {}
+  if (p) history.replaceState(null, "", location.pathname); // keep the key out of the address bar
+  return p;
+}
+
+const pairing = readPairing();
+let key = null;
+if (pairing) {
+  try { key = b64urlToBytes(pairing.key); } catch {}
+}
+
+// ---- sealing ----------------------------------------------------------------------------------
+const myId = bytesToB64(nacl.randomBytes(6)).replace(/[+/=]/g, "");
+let counter = 0;
+const seen = new Map();
+
+function seal(t, payload = {}) {
+  counter += 1;
+  const msg = { from: "phone", id: myId, n: counter, ts: Date.now(), t, ...payload };
+  const nonce = nacl.randomBytes(24);
+  const box = nacl.secretbox(new TextEncoder().encode(JSON.stringify(msg)), nonce, key);
+  const frame = new Uint8Array(24 + box.length);
+  frame.set(nonce);
+  frame.set(box, 24);
+  return frame;
+}
+function open(frame) {
+  const bytes = new Uint8Array(frame);
+  const plain = nacl.secretbox.open(bytes.subarray(24), bytes.subarray(0, 24), key);
+  if (!plain) return null;
+  const msg = JSON.parse(new TextDecoder().decode(plain));
+  if (msg.from !== "pc" || Math.abs(Date.now() - msg.ts) > MAX_SKEW_MS) return null;
+  if (msg.n <= (seen.get(msg.id) || 0)) return null;
+  seen.set(msg.id, msg.n);
+  return msg;
+}
+
+// ---- connection -------------------------------------------------------------------------------
+let ws = null;
+let pcHere = false;
+let retry = 1000;
+
+function setConn(text, on) {
+  $("conn").textContent = text;
+  $("dot").className = "dot" + (on ? "" : " off");
+}
+function connect() {
+  const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/room/${pairing.room}?role=phone`;
+  setConn("Connecting…", false);
+  ws = new WebSocket(url);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => { retry = 1000; setConn("Waiting for your PC", false); send("hello", { app: "test-page" }); };
+  ws.onclose = () => { pcHere = false; setConn("Reconnecting…", false); setTimeout(connect, retry); retry = Math.min(retry * 2, 30000); };
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      try {
+        const note = JSON.parse(ev.data);
+        if (note.relay === "peer") {
+          pcHere = !!note.present;
+          setConn(pcHere ? "Connected to your PC" : "Callout isn't running on your PC", pcHere);
+          if (pcHere) send("hello", { app: "test-page" });
+        }
+      } catch {}
+      return;
+    }
+    const msg = open(ev.data);
+    if (msg) handle(msg);
+  };
+}
+function send(t, payload) {
+  if (ws && ws.readyState === 1 && key) ws.send(seal(t, payload));
+}
+
+// ---- what the PC sends ------------------------------------------------------------------------
+function handle(msg) {
+  if (msg.t === "state") return renderState(msg);
+  if (msg.t === "say") return say(msg.text, msg.wav);
+}
+function renderState(s) {
+  const badge = $("badge");
+  badge.hidden = !s.badge;
+  badge.textContent = s.badge === "LIVE" ? "LIVE · REAL MONEY" : s.badge || "";
+  badge.className = "badge" + (s.badge === "LIVE" ? " live" : "");
+  const i = (s.instruments || [])[0];
+  $("contract").textContent = i ? `${i.symbol}${i.contract ? " · " + i.contract : ""}` : "Position";
+  $("position").textContent = i ? i.position.toUpperCase() : "—";
+  $("market").textContent = s.connected ? (s.market_open ? "market open" : "market closed") : "TWS not connected";
+  const p = s.pending;
+  $("pending").hidden = !p;
+  if (p) $("pending-head").textContent = p.verb === "Flatten" ? `Flatten ${p.symbol}` : `${p.verb} ${p.qty} ${p.symbol} · ${p.from} → ${p.to}`;
+  if (s.last && !speaking) $("last").textContent = s.last;
+}
+
+// ---- replies ----------------------------------------------------------------------------------
+let audioCtx = null;
+let speaking = false;
+let quietUntil = 0;
+
+async function say(text, wav) {
+  $("last").textContent = text;
+  speaking = true;
+  try {
+    if (wav && audioCtx) {
+      const bytes = Uint8Array.from(atob(wav), (c) => c.charCodeAt(0));
+      const buf = await audioCtx.decodeAudioData(bytes.buffer);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      quietUntil = Date.now() + buf.duration * 1000 + 400;
+      src.start();
+      await new Promise((r) => (src.onended = r));
+    } else if ("speechSynthesis" in window) {
+      await new Promise((r) => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.onend = r; u.onerror = r;
+        quietUntil = Date.now() + 15000;
+        speechSynthesis.speak(u);
+      });
+      quietUntil = Date.now() + 400;
+    }
+  } catch {}
+  speaking = false;
+}
+
+// ---- listening --------------------------------------------------------------------------------
+let listening = false;
+let stream = null, source = null, proc = null;
+
+$("listen").addEventListener("click", async () => {
+  if (listening) return stopListening();
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    source = audioCtx.createMediaStreamSource(stream);
+    proc = audioCtx.createScriptProcessor(4096, 1, 1);
+    proc.onaudioprocess = (e) => onAudio(e.inputBuffer.getChannelData(0), audioCtx.sampleRate);
+    source.connect(proc);
+    proc.connect(audioCtx.destination);
+    listening = true;
+    $("listen").classList.add("on");
+    $("listen-t").innerHTML = "LISTENING";
+    $("listen-s").textContent = 'Say "Call out, buy E S". Tap to stop.';
+  } catch (e) {
+    $("heard").textContent = "Couldn't use the microphone: " + (e.message || e);
+  }
+});
+function stopListening() {
+  listening = false;
+  try { proc.disconnect(); source.disconnect(); stream.getTracks().forEach((t) => t.stop()); } catch {}
+  $("listen").classList.remove("on");
+  $("listen-t").innerHTML = "START<br>LISTENING";
+  $("listen-s").textContent = 'Then say "Call out, buy E S"';
+  $("lvl").style.width = "0";
+}
+
+// Speech detection: send a clip once someone talks, ending after 0.7 s of quiet.
+const FRAME = 320; // 20 ms at 16 kHz
+let pending16 = new Float32Array(0);
+let floor = 0.01, inSpeech = false, loud = 0, quiet = 0;
+let preroll = [], clip = [];
+
+function resample(input, fromRate) {
+  const ratio = fromRate / RATE, n = Math.floor(input.length / ratio), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i * ratio, j = Math.floor(x), f = x - j;
+    out[i] = input[j] * (1 - f) + (input[j + 1] ?? input[j]) * f;
+  }
+  return out;
+}
+function onAudio(chunk, rate) {
+  const s16 = resample(chunk, rate);
+  const all = new Float32Array(pending16.length + s16.length);
+  all.set(pending16); all.set(s16, pending16.length);
+  let i = 0;
+  for (; i + FRAME <= all.length; i += FRAME) frame(all.subarray(i, i + FRAME));
+  pending16 = all.slice(i);
+}
+function frame(f) {
+  let sum = 0;
+  for (let k = 0; k < f.length; k++) sum += f[k] * f[k];
+  const rms = Math.sqrt(sum / f.length);
+  $("lvl").style.width = Math.min(100, Math.round(rms * 400)) + "%";
+  if (Date.now() < quietUntil || speaking) { inSpeech = false; clip = []; preroll = []; return; } // don't hear our own replies
+  if (!inSpeech) floor = Math.min(0.2, floor * 0.995 + rms * 0.005);
+  const isSpeech = rms > Math.max(0.012, floor * 3.5);
+  const copy = Float32Array.from(f);
+  if (!inSpeech) {
+    preroll.push(copy); if (preroll.length > 15) preroll.shift();
+    loud = isSpeech ? loud + 1 : 0;
+    if (loud >= 3) { inSpeech = true; clip = preroll.slice(); preroll = []; quiet = 0; }
+    return;
+  }
+  clip.push(copy);
+  quiet = isSpeech ? 0 : quiet + 1;
+  if (quiet >= 35 || clip.length >= 300) {
+    inSpeech = false; loud = 0;
+    if (clip.length >= 20) sendClip(clip);
+    clip = [];
+  }
+}
+function sendClip(frames) {
+  const pcm = new Int16Array(frames.length * FRAME);
+  frames.forEach((f, n) => { for (let k = 0; k < FRAME; k++) pcm[n * FRAME + k] = Math.max(-1, Math.min(1, f[k])) * 32767; });
+  send("clip", { rate: RATE, pcm: bytesToB64(new Uint8Array(pcm.buffer)) });
+  $("heard").textContent = `Sent ${(frames.length * 0.02).toFixed(1)} s of speech`;
+}
+
+// ---- buttons ----------------------------------------------------------------------------------
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cmd]");
+  if (b) send("cmd", { text: b.dataset.cmd });
+});
+/* Confirm and Flatten need a one-second press, so a stray tap (in a pocket, say) can't trade. */
+for (const b of document.querySelectorAll("[data-hold-cmd]")) {
+  let timer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; b.classList.remove("holding"); };
+  b.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("holding");
+    timer = setTimeout(() => { cancel(); send("cmd", { text: b.dataset.holdCmd }); }, 900);
+  });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => b.addEventListener(ev, cancel));
+}
+
+// ---- start ------------------------------------------------------------------------------------
+if (!pairing || !key || typeof nacl === "undefined") {
+  $("unpaired").hidden = false;
+  setConn("Not paired", false);
+} else {
+  $("app").hidden = false;
+  connect();
+}
+</script>
+</body>
+</html>

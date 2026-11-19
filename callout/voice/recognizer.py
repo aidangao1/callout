@@ -7,6 +7,7 @@ checked; anything shaky is rejected.
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +37,12 @@ class Transcriber:
             # A bare model name: vosk downloads it to ~/.cache/vosk on first use.
             self.model = Model(model_name=model)
         self.set_phrases(phrases)
+
+    def variant(self, phrases: list[str]) -> Transcriber:
+        """Another recognizer with a different phrase list, sharing this one's (large) model."""
+        other = copy.copy(self)
+        other.set_phrases(phrases)
+        return other
 
     def set_phrases(self, phrases: list[str]) -> None:
         """Change what the recognizer may hear (after enabling an instrument or adding ignored words)."""

@@ -223,3 +223,10 @@ def test_first_run_setup_writes_the_config_when_finished(tmp_path):
         assert load_config(path).broker.port == cfg.broker.port
     finally:
         s.stop()
+
+
+def test_update_and_discord_rows_in_activity():
+    up = feed_row({"event": "update_available", "ts": "2026-11-15T22:00:00.000-05:00", "version": "0.11.0"})
+    assert up["kind"] == "Update" and up["cat"] == "system" and "0.11.0" in up["text"]
+    err = feed_row({"event": "post_error", "ts": "2026-11-15T22:00:00.000-05:00", "error": "offline"})
+    assert err["kind"] == "Posts" and err["text"] == "Post failed: offline"

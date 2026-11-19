@@ -36,6 +36,23 @@ max_orders_per_minute = 10
 check_market_hours = true     # block orders outside CME Globex hours (Sun 6pm - Fri 5pm ET, daily 5-6pm halt)
 roll_days_before_expiry = 8   # switch to the next quarterly contract this many days before expiry
 
+[discord]
+webhook_url = ""              # a Discord channel webhook: fills and warnings get posted there. Blank = off.
+                              # In Discord: channel settings > Integrations > Webhooks > Copy Webhook URL
+
+[telegram]
+bot_token = ""                # from @BotFather in Telegram. Blank = off.
+chat_id = ""                  # the group to post to. Settings > Group posts > Find my group fills this in.
+
+[phone]
+relay = ""                    # the relay your phone and this PC meet at (see relay/README.md)
+room = ""                     # filled in when you pair a phone in Settings > Phone
+key = ""
+
+[updates]
+check = true                  # look for a newer version on GitHub when the app starts
+repo = "aidangao1/callout"
+
 # One section per instrument. "spoken" lists what you can say for it.
 [instruments.ES]
 enabled = true

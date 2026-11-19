@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import threading
 from pathlib import Path
 
 from ..config import ConfigError, load_config
+from . import updates
 from .session import Session
 
 WEB = Path(__file__).with_name("web")
@@ -63,6 +65,37 @@ class Api:
     def open_logs(self):
         self._session.open_logs()
         return True
+
+    def test_discord(self, url=None):
+        return self._session.test_discord(str(url or ""))
+
+    def find_telegram_groups(self, token=None):
+        return self._session.find_telegram_groups(str(token or ""))
+
+    def test_telegram(self):
+        return self._session.test_telegram()
+
+    def pair_phone(self):
+        return self._session.pair_phone()
+
+    def pairing_code(self):
+        return self._session.pairing_code()
+
+    def unpair_phone(self):
+        return self._session.unpair_phone()
+
+    def check_update(self):
+        return self._session.check_for_update()
+
+    def install_update(self):
+        return self._session.install_update()
+
+    def restart_for_update(self):
+        """Close the window; run_app then hands over to the updater, which reopens Callout."""
+        if self._session.update_ready and self._window is not None:
+            threading.Thread(target=self._window.destroy, daemon=True).start()
+            return True
+        return False
 
     def set_mini(self, on):
         """Shrink to the always-on-top strip, or go back to the full window.
@@ -146,7 +179,7 @@ def run_app(config_path: str = "config.toml", use_sim: bool = False) -> int:
         print(f"Config error: {e}")
         return 2
 
-    session = Session(cfg, path, use_sim=use_sim, first_run=first_run)
+    session = Session(cfg, path, use_sim=use_sim, first_run=first_run, check_updates=True)
     session.start()
     session.wait_ready()
 
@@ -163,6 +196,10 @@ def run_app(config_path: str = "config.toml", use_sim: bool = False) -> int:
     api._window = window
     window.events.closing += lambda: session.stop()
     webview.start(private_mode=True)
+    if session.update_ready:
+        folder, version = session.update_ready
+        print(f"Updating Callout to {version}. A new window shows the progress and reopens Callout.")
+        updates.launch_apply(updates.install_root(), folder, version, os.getpid())
     return 0
 
 

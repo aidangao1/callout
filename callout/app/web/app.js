@@ -4,7 +4,8 @@
    it sends "confirm", "cancel" or "flatten" to the engine.
 
    Sections: helpers · boot · shared bits · trading screen · mini mode · live unlock ·
-   settings · setup · navigation · input (clicks, changes, keys, hold-to-talk, hold-to-flatten) */
+   settings · discord and updates · setup · navigation ·
+   input (clicks, changes, keys, hold-to-talk, hold-to-flatten) */
 
 /* ---------------------------------------------------------------- helpers */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -32,6 +33,7 @@ let orderKey = "";
 let lastTest = "";
 let capturingKey = false;
 let toastTimer = null;
+let lastPostError = "";
 
 /* ---------------------------------------------------------------- boot */
 function start(bridge) {
@@ -69,6 +71,9 @@ function onState(s) {
   renderLiveModal();
   renderTest();
   renderSetupLive();
+  renderUpdate();
+  renderPostError();
+  renderPhone();
 }
 
 /* ---------------------------------------------------------------- shared bits */
@@ -299,6 +304,18 @@ function fillSettings() {
   setHTML("chips", (settings.decoys || []).map((d) =>
     `<span class="chip">${esc(d)}<button type="button" aria-label="Remove ${esc(d)}" data-remove-decoy="${esc(d)}"><svg width="14" height="14" aria-hidden="true"><use href="#i-x"/></svg></button></span>`).join("")
     + `<label><span class="sr">Add a word to ignore</span><input class="chip-add" placeholder="add a word, press Enter" data-add-decoy></label>`);
+  const hook = $("[data-discord]");
+  if (hook && document.activeElement !== hook) hook.value = settings.discord_webhook || "";
+  const relay = $("[data-phone-relay]");
+  if (relay && document.activeElement !== relay) {
+    relay.value = settings.phone_relay || "";
+    relay.placeholder = settings.phone_relay_default ? `Built in: ${settings.phone_relay_default}` : "https://callout-relay.you.workers.dev";
+  }
+  for (const el of $$('[data-setting="autostart"]')) el.disabled = !settings.autostart_supported;
+  const tg = $("[data-telegram-token]");
+  if (tg && document.activeElement !== tg) tg.value = settings.telegram_token || "";
+  setText("telegram-group", settings.telegram_chat ? `Posting to ${settings.telegram_chat_title || "your group"}` : "No group yet");
+  for (const el of bind("telegram-group")) el.classList.remove("bad");
   for (const r of $$('input[name="conn-app"]')) r.checked = r.value === settings.app;
   for (const r of $$('input[name="conn-mode"]')) r.checked = r.value === settings.mode;
   const port = $('[data-conn="port"]');
@@ -353,14 +370,153 @@ function renderTest() {
   setText("test-text", t);
 }
 
+/* ---------------------------------------------------------------- discord and updates */
+const UPDATE_NOTE = "Callout closes, updates and reopens by itself. It takes about a minute.";
+
+function renderUpdate() {
+  const u = state.update || { state: "idle" };
+  setText("version", state.version || "—");
+  const offered = ["available", "downloading", "ready"].includes(u.state);
+  show("update-dot", offered);
+  const view = {
+    checking: ["Checking GitHub…", "Checking…"],
+    current: ["You have the newest version", "Check now"],
+    available: [`Version ${u.version} is available`, `UPDATE TO ${u.version}`],
+    downloading: [`Downloading ${u.version}…`, "DOWNLOADING…"],
+    ready: ["Restarting to update…", "RESTARTING…"],
+    error: [u.error || "Couldn't check for updates", "Check now"],
+  }[u.state] || ["Not checked yet", "Check now"];
+  setText("update-status", view[0]);
+  for (const b of bind("update-button")) {
+    b.textContent = view[1];
+    b.classList.toggle("primary", offered);
+    b.disabled = ["checking", "downloading", "ready"].includes(u.state) || (u.state === "available" && !!u.blocked);
+  }
+  setText("update-result", (u.state === "available" && (u.error || u.blocked)) || UPDATE_NOTE);
+  for (const el of bind("update-result")) el.classList.toggle("bad", u.state === "available" && !!(u.error || u.blocked));
+  const notes = u.state === "available" && u.notes ? `What's new: ${u.notes}` : "";
+  setText("update-notes", notes);
+  show("update-notes", !!notes);
+}
+
+function renderPostError() {
+  const err = state.post_error || "";
+  if (err === lastPostError) return;
+  lastPostError = err;
+  if (!err) return;
+  const name = err.startsWith("Telegram") ? "telegram-result" : "discord-result";
+  setText(name, `Last post failed: ${err}`);
+  for (const el of bind(name)) el.classList.add("bad");
+}
+
+async function updateButton() {
+  const u = state.update || {};
+  if (u.state !== "available") return api.check_update();
+  const r = await api.install_update();
+  if (!r.ok) return toast(r.error, true);
+  toast("Restarting to update…");
+  return api.restart_for_update();
+}
+
+async function testDiscord() {
+  setText("discord-result", "Sending…");
+  const r = await api.test_discord(($("[data-discord]") || {}).value || "");
+  setText("discord-result", r.ok ? "Sent. Check the channel in Discord." : r.error);
+  for (const el of bind("discord-result")) el.classList.toggle("bad", !r.ok);
+}
+
+async function findTelegram() {
+  const token = (($("[data-telegram-token]") || {}).value || "").trim();
+  setText("telegram-group", "Looking…");
+  const r = await api.find_telegram_groups(token);
+  if (!r.ok) {
+    setText("telegram-group", r.error);
+    for (const el of bind("telegram-group")) el.classList.add("bad");
+    return;
+  }
+  const g = r.groups[0];
+  await applyPatch({ telegram_token: token, telegram_chat: g.id, telegram_chat_title: g.title }, `Posting to ${g.title}`);
+  if (r.groups.length > 1) setText("telegram-group", `Posting to ${g.title} (the newest of ${r.groups.length} groups the bot is in)`);
+}
+
+async function testTelegram() {
+  setText("telegram-result", "Sending…");
+  const r = await api.test_telegram();
+  setText("telegram-result", r.ok ? "Sent. Check the group in Telegram." : r.error);
+  for (const el of bind("telegram-result")) el.classList.toggle("bad", !r.ok);
+}
+
+function saveTelegram() {
+  const token = (($("[data-telegram-token]") || {}).value || "").trim();
+  return applyPatch({ telegram_token: token }, token ? "Token saved. Now click Find my group." : "Telegram posts are off.");
+}
+
+function saveDiscord() {
+  const url = (($("[data-discord]") || {}).value || "").trim();
+  return applyPatch({ discord_webhook: url }, url ? "Discord posts are on." : "Discord posts are off.");
+}
+
+/* ---------------------------------------------------------------- phone */
+function renderPhone() {
+  const ph = state.phone || { status: "off", text: "Not paired", paired: false };
+  setText("phone-status", ph.text);
+  setText("phone-detail", ph.status === "connected" ? "Listening through the phone" : ph.detail || (ph.paired ? "" : "Pair a phone to start"));
+  for (const d of bind("phone-dot")) d.className = "dot" + (ph.status === "connected" ? "" : " off");
+  const heard = ph.heard ? `"${ph.heard.text || "…"}"${ph.heard.acted ? "" : " · ignored"}` : "—";
+  setText("phone-heard", heard);
+  setText("pair-button", ph.paired ? "PAIR A NEW PHONE" : "PAIR A PHONE");
+  show("unpair-button", !!ph.paired);
+}
+
+function showQR(r) {
+  if (!r || !r.svg) return;
+  setHTML("qr", r.svg); // drawn by Callout itself, not user input
+  show("qr-box", true);
+}
+
+async function pairPhone() {
+  const r = await api.pair_phone();
+  if (!r.ok) {
+    setText("pair-result", r.error);
+    for (const el of bind("pair-result")) el.classList.add("bad");
+    return;
+  }
+  setText("pair-result", "Scan the code below with your phone.");
+  for (const el of bind("pair-result")) el.classList.remove("bad");
+  showQR(r);
+}
+
+async function unpairPhone() {
+  await api.unpair_phone();
+  show("qr-box", false);
+  setText("pair-result", "Unpaired. The phone can't reach Callout anymore.");
+}
+
+function saveRelay() {
+  const url = (($("[data-phone-relay]") || {}).value || "").trim();
+  return applyPatch({ phone_relay: url }, url ? "Relay saved." : "Relay cleared.");
+}
+
 /* ---------------------------------------------------------------- setup */
+const SETUP_STEPS = 5;
+
+/* Step 5: show the pairing code. Re-running setup shows the existing code instead of
+   making a new one, which would cut off a phone that's already paired. */
+async function setupPhone() {
+  const ph = state.phone || {};
+  const r = ph.paired ? await api.pairing_code() : await api.pair_phone();
+  if (r && r.svg) setHTML("setup-qr", r.svg); // drawn by Callout itself, not user input
+  else setText("setup-qr-note", (r && r.error) || "Couldn't make a code. You can pair later in Settings › Phone.");
+}
+
 function renderSetup() {
   for (const li of $$("[data-step-nav]")) {
     if (Number(li.dataset.stepNav) === setupStep) li.setAttribute("aria-current", "step");
     else li.removeAttribute("aria-current");
   }
   for (const sec of $$("[data-step]")) sec.hidden = Number(sec.dataset.step) !== setupStep;
-  setText("next-label", setupStep === 4 ? "FINISH" : "NEXT");
+  setText("next-label", setupStep === SETUP_STEPS ? "FINISH" : "NEXT");
+  if (setupStep === 5) setupPhone();
   const back = $('[data-action="setup-back"]');
   if (back) back.disabled = setupStep === 1;
 }
@@ -406,7 +562,11 @@ function toast(text, bad) {
 document.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-go], [data-action], [data-cmd], [data-filter], [data-remove-decoy]");
   if (!t || t.disabled) return;
-  if (t.dataset.go) return go(t.dataset.go, t.dataset.scroll);
+  if (t.dataset.go) {
+    // The Settings link carries a marker when an update is waiting; then it opens Updates.
+    if (t.hasAttribute("data-settings-link") && !bind("update-dot")[0].hidden) return go("settings-more", "updates");
+    return go(t.dataset.go, t.dataset.scroll);
+  }
   if (t.dataset.cmd) return api.command(t.dataset.cmd);
   if (t.dataset.filter) {
     filter = t.dataset.filter;
@@ -449,7 +609,7 @@ document.addEventListener("click", async (e) => {
     }
     case "setup-back": setupStep = Math.max(1, setupStep - 1); return renderSetup();
     case "setup-next":
-      if (setupStep < 4) { setupStep += 1; return renderSetup(); }
+      if (setupStep < SETUP_STEPS) { setupStep += 1; return renderSetup(); }
       await api.finish_setup();
       return go("trading");
     case "setup-skip": await api.finish_setup(); return go("trading");
@@ -459,6 +619,16 @@ document.addEventListener("click", async (e) => {
       return;
     }
     case "use-paper": return applyPatch({ mode: "paper", app: (settings && settings.app) || "tws" }, "Switched to paper.");
+    case "save-discord": return saveDiscord();
+    case "save-relay": return saveRelay();
+    case "pair-phone": return pairPhone();
+    case "unpair-phone": return unpairPhone();
+    case "hide-qr": return show("qr-box", false);
+    case "save-telegram": return saveTelegram();
+    case "find-telegram": return findTelegram();
+    case "test-telegram": return testTelegram();
+    case "test-discord": return testDiscord();
+    case "update-button": return updateButton();
   }
 });
 
@@ -498,6 +668,9 @@ document.addEventListener("keydown", (e) => {
     return applyPatch({ push_to_talk: k }, `Talk key is now ${keyLabel(k)}`);
   }
   if (e.target.closest && e.target.closest("input, select, textarea")) {
+    if (e.key === "Enter" && e.target.matches("[data-discord]")) return saveDiscord();
+    if (e.key === "Enter" && e.target.matches("[data-phone-relay]")) return saveRelay();
+    if (e.key === "Enter" && e.target.matches("[data-telegram-token]")) return saveTelegram();
     if (e.key === "Enter" && e.target.matches("[data-add-decoy]")) {
       const word = e.target.value.trim();
       if (word) applyPatch({ decoys: [...(settings.decoys || []), word] });

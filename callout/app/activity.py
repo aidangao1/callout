@@ -97,6 +97,13 @@ def feed_row(rec: dict) -> dict | None:
         row.update(kind="Roll", cat="system", text=f"{rec.get('old')} → {rec.get('new')}")
     elif ev == "contract_roll_deferred":
         row.update(kind="Roll", cat="system", text=f"Waiting until you're flat in {rec.get('old')}")
+    elif ev == "phone":
+        on = rec.get("status") == "connected"
+        row.update(kind="Phone", cat="system", strong=not on, text="Phone connected" if on else "Phone disconnected")
+    elif ev == "update_available":
+        row.update(kind="Update", cat="system", text=f"Version {rec.get('version')} is available. Settings › Updates")
+    elif ev == "post_error":
+        row.update(kind="Posts", cat="system", text=f"Post failed: {rec.get('error')}")
     elif ev == "broker_error":
         row.update(kind="Broker", cat="system", text=f"[{rec.get('code')}] {rec.get('message')}")
     elif ev in ("error", "connect_failed"):

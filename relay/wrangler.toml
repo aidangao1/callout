@@ -1,0 +1,18 @@
+# Callout relay: lets your phone and your PC reach each other from anywhere.
+# Deploy with:  npx wrangler deploy   (see README.md in this folder)
+name = "callout-relay"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true

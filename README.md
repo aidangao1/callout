@@ -2,6 +2,8 @@
 
 Trade ES futures with your voice. Hold a key, say **"buy E S"**, hear the order read back, say **"confirm"**, and it's sent to your Interactive Brokers account.
 
+**New here? Start with the one-page [quick start](QUICKSTART.md).**
+
 > **Warning:** Callout places real orders when connected to a real-money account. Always start with a **paper** (practice) account. Use at your own risk. This is not financial advice.
 
 ## What you need
@@ -138,8 +140,71 @@ Click **Settings** in the top right. Changes apply right away and are saved for 
 - **Microphone and voice:** pick your mic (with a live level meter), test a command, change the talk key, turn spoken replies on or off, set their speed and volume, and add words Callout should ignore.
 - **Trading:** turn ES and Micro E-mini (MES) on or off, contracts per order, the largest position allowed, the market-hours check, and the confirm settings.
 - **Connection:** TWS or IB Gateway, paper or live. The port fills in by itself (TWS: paper 7497, live 7496). Only type a different one if you changed it in TWS.
+- **Phone:** trade hands-free from your phone, from anywhere (see below).
+- **Group posts:** post your fills and warnings to a Telegram group or a Discord channel (see below).
+- **Updates:** which version you have, and updating to a new one (see below).
 - **Logs:** opens the folder with the daily log files.
 - **Run setup again:** repeats the first-run setup.
+
+---
+
+## Trading from your phone
+
+Your phone listens, and Callout on your computer does the trading, so you can trade from anywhere with earbuds in. Your computer has to stay on at home with TWS logged in.
+
+**Setting it up (once):**
+1. Set up the relay (one-time, about 10 minutes): follow `relay/README.md`, then paste its address into **Settings › Phone** and click **Save**.
+2. Click **Pair a phone**, and scan the code with your phone's camera.
+
+**Using it:** open the page the code opened (or the Callout app), tap **Start listening**, and talk:
+
+> **You:** "Call out, buy E S"
+> **Callout (in your earbuds):** "Buy 1 E S. Flat to long 1. Say confirm."
+> **You:** "Confirm"
+
+- Callout only acts on speech that starts with **"Call out"**, so the conversation around you is ignored. While an order waits, a plain "confirm" or "cancel" is enough.
+- **Every order from the phone needs "confirm", flatten too,** because the phone's mic is always on.
+- The page in the phone's browser needs the screen on. The Callout iPhone app keeps listening with the phone locked in your pocket.
+- On the phone page, **Confirm** and **Flatten** need a one-second press, so a stray tap can't trade. Saying "confirm" works as usual.
+
+**Keeping the phone page listening in your pocket (until the Callout app):** iPhones stop a web page's microphone when the screen locks. Apple's Guided Access keeps the page on screen and ignores touches, so nothing gets tapped in your pocket.
+
+- **Once:** on the iPhone, go to **Settings › Accessibility › Guided Access**, turn it on, set a passcode, and set **Display Auto-Lock** to **Never**.
+- **Each time:**
+  1. Open the Callout page, tap **Start listening**, and allow the mic.
+  2. Triple-click the side button, tap **Options**, turn off **Touch**, tap **Done**, then **Start**.
+  3. Pocket the phone and talk.
+- **To stop:** triple-click the side button, enter the passcode (or double-click and use Face ID), and tap **End**.
+
+The screen stays on, so the battery drains faster. The Callout iPhone app will listen with the phone locked, without any of this.
+- Commands and replies are encrypted between your phone and your computer. Pairing again (or clicking Unpair) cuts off the old phone.
+
+---
+
+## Fills in a group chat (Telegram or Discord)
+
+Callout can post every fill, flatten result, order problem and lost connection to a Telegram group, a Discord channel, or both, so they reach your phone or watch while you're away. Each post says whether it was **PAPER** or **LIVE**. Readbacks and misheard words aren't posted.
+
+**Telegram**
+1. In Telegram, message **@BotFather**, send `/newbot`, and follow the steps. It gives you a token like `123456789:AAH…`.
+2. Add your new bot to the group (Group info › Add members), and send any message in the group.
+3. In Callout, go to **Settings › Group posts**, paste the token, click **Save**, then **Find my group**, then **Send a test message**.
+
+**Discord**
+1. Open the channel's settings in Discord, then **Integrations › Webhooks › New Webhook**, and click **Copy Webhook URL**.
+2. In Callout, go to **Settings › Group posts**, paste the link under Discord, click **Save**, then **Send a test message**.
+
+Keep the token and the link to yourself: anyone who has them can post into your group. To stop posts, clear the box and click Save.
+
+WeChat isn't supported: WeChat doesn't let programs post into ordinary groups, and the unofficial tools that do can get your WeChat account banned.
+
+---
+
+## Updating Callout
+
+When a new version is out, a small square appears next to **Settings** in the top bar, and the Activity list says so. Click Settings, then **Update**: Callout closes, updates and reopens by itself in about a minute. Your settings and logs are kept. It only updates when you have no open position and no order waiting for confirm.
+
+This works from version 0.10.0 on. To get 0.10.0 from an older version, do it by hand once: download the new ZIP, extract it to a new folder, copy `config.toml` from your old Callout folder into the new one, and double-click `install.bat` there.
 
 ---
 
@@ -152,6 +217,8 @@ Only do this after you've used paper trading for a while.
 3. The top bar now shows a solid **LIVE · REAL MONEY** tag. Every time you open Callout after that, it asks you to type `LIVE` again before it connects.
 
 To go back to practice, choose **Paper** in Settings › Connection.
+
+**Using the IBKR Mobile app while Callout trades live:** IBKR lets each username be logged in to only one trading app at a time. Logging in on your phone with the same username as TWS logs TWS out, which disconnects Callout. Add a second username for your account in IBKR's Client Portal and use that one on your phone. (Your paper account has its own username, so paper is not affected, but paper loses live prices while your real username is logged in somewhere else.)
 
 Consider starting with Micro E-mini (MES). It's a tenth the size of ES, so mistakes cost a tenth as much.
 

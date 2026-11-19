@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+.update/
+.update-backup/
+relay/node_modules/
+relay/.wrangler/

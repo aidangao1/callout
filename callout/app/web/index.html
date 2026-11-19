@@ -30,7 +30,7 @@
     <span class="spacer"></span>
     <nav class="topnav" aria-label="Window">
       <button type="button" class="linkbtn" data-go="mini">Mini mode</button>
-      <button type="button" class="linkbtn" data-go="settings-audio">Settings</button>
+      <button type="button" class="linkbtn" data-go="settings-audio" data-settings-link>Settings<span data-bind="update-dot" hidden><span class="dot new" aria-hidden="true"></span><span class="sr"> (update available)</span></span></button>
     </nav>
   </header>
 
@@ -105,7 +105,7 @@
 </div>
 
 <!-- ======================= SETTINGS ======================= -->
-<div class="view" id="view-settings" data-view="settings-audio settings-trading" hidden>
+<div class="view" id="view-settings" data-view="settings-audio settings-trading settings-phone settings-more" hidden>
   <header class="topbar">
     <button type="button" class="linkbtn backlink" data-go="trading"><svg width="18" height="18" aria-hidden="true"><use href="#i-back"/></svg>Back to trading</button>
     <span class="wordmark">Settings</span>
@@ -118,6 +118,9 @@
       <button type="button" data-go="settings-audio">Microphone and voice</button>
       <button type="button" data-go="settings-trading">Trading</button>
       <button type="button" data-go="settings-trading" data-scroll="connection">Connection</button>
+      <button type="button" data-go="settings-phone">Phone</button>
+      <button type="button" data-go="settings-more">Group posts</button>
+      <button type="button" data-go="settings-more" data-scroll="updates">Updates</button>
       <button type="button" data-action="open-logs">Logs</button>
       <button type="button" class="bottom" data-go="setup">Run setup again</button>
     </nav>
@@ -230,6 +233,95 @@
         </div>
       </section>
     </main>
+
+    <main class="content" data-page="settings-phone" hidden>
+      <section class="sec" id="phone">
+        <div class="sec-head"><h2>Phone</h2><p>Trade hands-free from anywhere. Your phone listens; Callout on this computer does the trading. Every order from the phone needs "confirm".</p></div>
+        <div class="sec-body">
+          <div>
+            <div class="line"><span class="two"><span>Status</span><small data-bind="phone-detail"></small></span><span class="conn"><span class="dot off" data-bind="phone-dot"></span><strong data-bind="phone-status">Not paired</strong></span></div>
+            <div class="line"><span class="two"><span>Last heard from the phone</span><small>Only speech starting with "Call out" is acted on</small></span><span class="muted" data-bind="phone-heard">—</span></div>
+            <label class="line"><span class="two"><span>Open Callout when Windows starts</span><small>So it's ready while you're out. Keep TWS logged in too.</small></span><input type="checkbox" data-setting="autostart"></label>
+          </div>
+          <div class="btnpair">
+            <button type="button" class="btn primary" data-action="pair-phone" data-bind="pair-button">PAIR A PHONE</button>
+            <button type="button" class="btn joined" data-action="unpair-phone" data-bind="unpair-button" hidden>Unpair</button>
+            <span class="result" data-bind="pair-result">Shows a code to scan with your phone.</span>
+          </div>
+          <div class="qr-box" data-bind="qr-box" hidden>
+            <div class="qr" data-bind="qr"></div>
+            <div class="qr-text">
+              <span class="label ink">Scan with your phone</span>
+              <p>Open the phone's camera (or the Callout app) and point it at this code. Pairing again disconnects the phone paired before.</p>
+              <button type="button" class="linkbtn text-sm" data-action="hide-qr">Hide the code</button>
+            </div>
+          </div>
+          <details class="more">
+            <summary>Advanced: relay address</summary>
+            <div class="joined-row">
+              <label class="field-label"><span>Relay address</span>
+                <input class="inp" data-phone-relay spellcheck="false" autocomplete="off">
+              </label>
+              <button type="button" class="btn" data-action="save-relay">Save</button>
+            </div>
+            <p class="hint">Where your phone and this computer meet. Leave it blank to use the one built into Callout. It can't read your commands: they're encrypted with a key only your phone and this computer have.</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <main class="content" data-page="settings-more" hidden>
+      <section class="sec" id="telegram">
+        <div class="sec-head"><h2>Telegram</h2><p>Post every fill and warning to a Telegram group.</p></div>
+        <div class="sec-body">
+          <div class="joined-row">
+            <label class="field-label"><span>Bot token</span>
+              <input class="inp" type="password" data-telegram-token placeholder="From @BotFather" spellcheck="false" autocomplete="off">
+            </label>
+            <button type="button" class="btn" data-action="save-telegram">Save</button>
+          </div>
+          <p class="hint">In Telegram, message <strong>@BotFather</strong>, send <strong>/newbot</strong> and follow the steps. Paste the token it gives you, add the new bot to your group, then click <strong>Find my group</strong>.</p>
+          <div class="btnpair">
+            <button type="button" class="btn" data-action="find-telegram">Find my group</button>
+            <span class="result" data-bind="telegram-group">No group yet</span>
+          </div>
+          <div class="btnpair">
+            <button type="button" class="btn" data-action="test-telegram">Send a test message</button>
+            <span class="result" data-bind="telegram-result">Posts fills, flatten results, order problems and lost connections.</span>
+          </div>
+        </div>
+      </section>
+      <section class="sec" id="discord">
+        <div class="sec-head"><h2>Discord</h2><p>Post every fill and warning to a Discord channel, so they reach your phone or watch.</p></div>
+        <div class="sec-body">
+          <div class="joined-row">
+            <label class="field-label"><span>Channel webhook link</span>
+              <input class="inp" data-discord placeholder="https://discord.com/api/webhooks/…" spellcheck="false" autocomplete="off">
+            </label>
+            <button type="button" class="btn" data-action="save-discord">Save</button>
+          </div>
+          <p class="hint">In Discord, open the channel's settings, then <strong>Integrations › Webhooks › New Webhook</strong>, and click <strong>Copy Webhook URL</strong>. Leave it blank to turn posts off.</p>
+          <div class="btnpair">
+            <button type="button" class="btn" data-action="test-discord">Send a test message</button>
+            <span class="result" data-bind="discord-result">Posts fills, flatten results, order problems and lost connections.</span>
+          </div>
+        </div>
+      </section>
+      <section class="sec" id="updates">
+        <div class="sec-head"><h2>Updates</h2><p>New versions come from Callout's page on GitHub. Your settings and logs are kept.</p></div>
+        <div class="sec-body">
+          <div>
+            <div class="line"><span class="two"><span>This version</span><small data-bind="update-status">Not checked yet</small></span><strong data-bind="version">—</strong></div>
+            <label class="line"><span>Check for updates when Callout starts</span><input type="checkbox" data-setting="check_updates"></label>
+          </div>
+          <div class="btnpair">
+            <button type="button" class="btn" data-action="update-button" data-bind="update-button">Check now</button>
+            <span class="result" data-bind="update-result">Callout closes, updates and reopens by itself. It takes about a minute.</span>
+          </div>
+          <p class="hint" data-bind="update-notes" hidden></p>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
 
@@ -247,11 +339,12 @@
       <li data-step-nav="2"><span class="num-big">2</span>Pick your microphone</li>
       <li data-step-nav="3"><span class="num-big">3</span>Check you can hear it</li>
       <li data-step-nav="4"><span class="num-big">4</span>Practice on paper</li>
+      <li data-step-nav="5"><span class="num-big">5</span>Connect your phone</li>
     </ol>
     <main class="content">
       <section class="setup-step" data-step="1">
         <div class="setup-head">
-          <p class="label">Step 1 of 4</p>
+          <p class="label">Step 1 of 5</p>
           <h1 class="setup-title">Connect to<br>Trader Workstation</h1>
           <p class="setup-sub">Callout sends your orders through TWS, so it needs to be open with its API turned on.</p>
         </div>
@@ -273,7 +366,7 @@
 
       <section class="setup-step" data-step="2" hidden>
         <div class="setup-head">
-          <p class="label">Step 2 of 4</p>
+          <p class="label">Step 2 of 5</p>
           <h1 class="setup-title">Pick your<br>microphone</h1>
           <p class="setup-sub">Choose the mic you talk into, then hold F9 (or the button) and say "buy E S". Nothing is traded.</p>
         </div>
@@ -294,7 +387,7 @@
 
       <section class="setup-step" data-step="3" hidden>
         <div class="setup-head">
-          <p class="label">Step 3 of 4</p>
+          <p class="label">Step 3 of 5</p>
           <h1 class="setup-title">Check you<br>can hear it</h1>
           <p class="setup-sub">Callout reads every order back. Make sure you can hear it on the speakers or headset you'll use.</p>
         </div>
@@ -307,7 +400,7 @@
 
       <section class="setup-step" data-step="4" hidden>
         <div class="setup-head">
-          <p class="label">Step 4 of 4</p>
+          <p class="label">Step 4 of 5</p>
           <h1 class="setup-title">Practice<br>on paper</h1>
           <p class="setup-sub">Hold F9 and say "buy E S". Listen to the readback, then hold F9 and say "confirm". Say "flatten" to close it.</p>
         </div>
@@ -316,6 +409,21 @@
           <p class="practice-pos" data-bind="practice-pos">—</p>
           <p class="practice-last" data-bind="practice-last"></p>
           <p class="hint" data-bind="practice-note"></p>
+        </div>
+      </section>
+
+      <section class="setup-step" data-step="5" hidden>
+        <div class="setup-head">
+          <p class="label">Step 5 of 5</p>
+          <h1 class="setup-title">Connect<br>your phone</h1>
+          <p class="setup-sub">Trade hands-free from anywhere. Scan this code with your iPhone's camera, or with the Callout app. You can skip this and do it later in Settings › Phone.</p>
+        </div>
+        <div class="setup-body split">
+          <div class="qr" data-bind="setup-qr"><p class="hint" data-bind="setup-qr-note">Making a code…</p></div>
+          <div class="qr-text">
+            <div class="line"><span class="two"><span>Phone</span><small>Turns on when your phone opens the code</small></span><span class="conn"><span class="dot off" data-bind="phone-dot"></span><strong data-bind="phone-status">Not paired</strong></span></div>
+            <label class="line"><span class="two"><span>Open Callout when Windows starts</span><small>So it's ready while you're out</small></span><input type="checkbox" data-setting="autostart"></label>
+          </div>
         </div>
       </section>
 

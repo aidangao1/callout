@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
@@ -14,6 +15,12 @@ TEMPLATE = Path(__file__).with_name("config_template.toml")
 PORTS = {("tws", "paper"): 7497, ("tws", "live"): 7496, ("gateway", "paper"): 4002, ("gateway", "live"): 4001}
 LIVE_PORTS = {7496, 4001}
 PAPER_PORTS = {7497, 4002}
+
+# The relay phones and computers meet at (relay/README.md). Blank phone.relay means this one.
+DEFAULT_RELAY = "https://callout-relay.aidangao1.workers.dev"
+
+# A Discord channel webhook, as Discord's "Copy Webhook URL" gives it.
+DISCORD_WEBHOOK = re.compile(r"^https://(?:(?:canary|ptb)\.)?discord(?:app)?\.com/api/(?:v\d+/)?webhooks/\d+/[\w-]+$")
 
 
 class ConfigError(ValueError):
@@ -58,6 +65,36 @@ class SafetyConfig:
 
 
 @dataclass
+class DiscordConfig:
+    webhook_url: str = ""  # a channel's webhook: Callout posts fills and warnings there. Blank = off.
+
+
+@dataclass
+class TelegramConfig:
+    bot_token: str = ""  # from @BotFather. Blank = off.
+    chat_id: str = ""  # the group Callout posts fills and warnings to
+    chat_title: str = ""  # the group's name, for the Settings screen
+
+
+@dataclass
+class PhoneConfig:
+    relay: str = ""  # blank = Callout's built-in relay; or your own, e.g. https://callout-relay.you.workers.dev
+
+    @property
+    def relay_url(self) -> str:
+        return (self.relay or DEFAULT_RELAY).strip().rstrip("/")
+
+    room: str = ""  # set when you pair a phone (Settings › Phone)
+    key: str = ""  # the end-to-end key from pairing; never leaves this PC and the phone
+
+
+@dataclass
+class UpdatesConfig:
+    check: bool = True  # look for a newer version on GitHub when Callout starts
+    repo: str = "aidangao1/callout"  # where releases come from
+
+
+@dataclass
 class Instrument:
     symbol: str
     enabled: bool = True
@@ -78,6 +115,10 @@ class Config:
     broker: BrokerConfig = field(default_factory=BrokerConfig)
     voice: VoiceConfig = field(default_factory=VoiceConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
+    discord: DiscordConfig = field(default_factory=DiscordConfig)
+    telegram: TelegramConfig = field(default_factory=TelegramConfig)
+    phone: PhoneConfig = field(default_factory=PhoneConfig)
+    updates: UpdatesConfig = field(default_factory=UpdatesConfig)
     instruments: dict[str, Instrument] = field(default_factory=dict)
     log_dir: str = "logs"
 
@@ -118,6 +159,10 @@ def load_config(path: str | Path | None) -> Config:
         broker=_build(BrokerConfig, raw.get("broker", {}), "broker"),
         voice=_build(VoiceConfig, raw.get("voice", {}), "voice"),
         safety=_build(SafetyConfig, raw.get("safety", {}), "safety"),
+        discord=_build(DiscordConfig, raw.get("discord", {}), "discord"),
+        telegram=_build(TelegramConfig, raw.get("telegram", {}), "telegram"),
+        phone=_build(PhoneConfig, raw.get("phone", {}), "phone"),
+        updates=_build(UpdatesConfig, raw.get("updates", {}), "updates"),
         log_dir=raw.get("log_dir", "logs"),
     )
 
@@ -160,6 +205,24 @@ def validate(cfg: Config) -> None:
         raise ConfigError("safety.max_position must be >= 1")
     if not 0 <= v.min_confidence <= 1:
         raise ConfigError("voice.min_confidence must be between 0 and 1")
+    url = cfg.discord.webhook_url.strip()
+    if url and not DISCORD_WEBHOOK.match(url):
+        raise ConfigError(
+            "That isn't a Discord webhook link. In Discord, open the channel's settings, "
+            "then Integrations › Webhooks, and use Copy Webhook URL."
+        )
+    tg = cfg.telegram
+    if tg.bot_token.strip() and not re.fullmatch(r"\d{5,}:[\w-]{30,}", tg.bot_token.strip()):
+        raise ConfigError("That isn't a Telegram bot token. @BotFather gives one like 123456789:AAH…")
+    if tg.chat_id.strip() and not re.fullmatch(r"-?\d{3,}", tg.chat_id.strip()):
+        raise ConfigError("telegram.chat_id should be the group's number. Use Find my group in Settings.")
+    relay = cfg.phone.relay.strip()
+    if relay and not re.fullmatch(r"https://[\w.-]+(:\d+)?", relay.rstrip("/")):
+        raise ConfigError(
+            "phone.relay must be the relay's https:// address, like https://callout-relay.you.workers.dev"
+        )
+    if not re.fullmatch(r"[\w.-]+/[\w.-]+", cfg.updates.repo):
+        raise ConfigError("updates.repo must look like owner/name")
 
 
 # ---- saving -------------------------------------------------------------------------------------
@@ -195,6 +258,10 @@ def config_to_dict(cfg: Config) -> dict:
         "broker": section(cfg.broker, BrokerConfig),
         "voice": section(cfg.voice, VoiceConfig),
         "safety": section(cfg.safety, SafetyConfig),
+        "discord": section(cfg.discord, DiscordConfig),
+        "telegram": section(cfg.telegram, TelegramConfig),
+        "phone": section(cfg.phone, PhoneConfig),
+        "updates": section(cfg.updates, UpdatesConfig),
         "instruments": instruments,
     }
 
