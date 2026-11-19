@@ -879,7 +879,7 @@ class Session:
         if r["ok"] and not r["groups"]:
             return {
                 "ok": False,
-                "error": "No group found yet. Add the bot to your group, send a message there, then try again.",
+                "error": "No group found yet. Add the bot to the group, send /start@YourBotName there, then try again.",
             }
         return r
 

@@ -32,7 +32,7 @@ The phone page only listens while it's on screen. To keep it going in your pocke
 
 Callout can post every fill to a Telegram group or a Discord channel. In Callout, go to **Settings › Group posts**:
 
-- **Telegram:** message **@BotFather** in Telegram and send `/newbot` to get a token. Add the new bot to your group and send a message there. In Callout, paste the token, click **Save**, then **Find my group**.
+- **Telegram:** message **@BotFather** in Telegram and send `/newbot` to get a token. Add the new bot to your group and send **`/start@YourBotName`** there (with your bot's username). In Callout, paste the token, click **Save**, then **Find my group**.
 - **Discord:** in the channel's settings, go to **Integrations › Webhooks › New Webhook › Copy Webhook URL**. Paste it in Callout and click **Save**.
 
 Then click **Send a test message** to check it arrives.

@@ -1,8 +1,9 @@
 """Post to a Telegram group through a bot.
 
 Setup: message @BotFather in Telegram, send /newbot, and copy the token it gives you.
-Add the bot to your group. Callout then finds the group itself (find_groups) by asking
-Telegram which chats the bot was added to.
+Add the bot to your group and send /start@YourBotName there (bots only see messages
+addressed to them). Callout then finds the group itself (find_groups) by asking Telegram
+which chats the bot was added to or messaged in.
 """
 
 from __future__ import annotations

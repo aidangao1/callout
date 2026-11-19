@@ -187,7 +187,7 @@ Callout can post every fill, flatten result, order problem and lost connection t
 
 **Telegram**
 1. In Telegram, message **@BotFather**, send `/newbot`, and follow the steps. It gives you a token like `123456789:AAH…`.
-2. Add your new bot to the group (Group info › Add members), and send any message in the group.
+2. Add your new bot to the group (Group info › Add members). Then, in the group, send **`/start@YourBotName`** with your bot's username. Bots only see messages addressed to them, so a plain message doesn't count.
 3. In Callout, go to **Settings › Group posts**, paste the token, click **Save**, then **Find my group**, then **Send a test message**.
 
 **Discord**
